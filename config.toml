@@ -1,0 +1,17 @@
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[mcp_servers.firebase]
+command = "npx"
+args = [
+  "-y",
+  "firebase-tools@latest",
+  "mcp",
+  "--dir",
+  "C:\\Users\\user\\Downloads\\lab-dashboard-main\\lab-dashboard-main",
+  "--only",
+  "auth,firestore,storage,hosting"
+]
+startup_timeout_sec = 30
+tool_timeout_sec = 120
+default_tools_approval_mode = "prompt"

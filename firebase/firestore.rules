@@ -1,0 +1,199 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function emailVerified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    function profilePath(uid) {
+      return /databases/$(database)/documents/profiles/$(uid);
+    }
+
+    function hasProfile(uid) {
+      return exists(profilePath(uid));
+    }
+
+    function currentProfile() {
+      return get(profilePath(request.auth.uid)).data;
+    }
+
+    function currentRole() {
+      return signedIn() && hasProfile(request.auth.uid)
+        ? currentProfile().role
+        : null;
+    }
+
+    function currentStatus() {
+      return signedIn() && hasProfile(request.auth.uid)
+        ? currentProfile().status
+        : null;
+    }
+
+    function isActiveUser() {
+      return emailVerified()
+        && hasProfile(request.auth.uid)
+        && currentStatus() == 'active';
+    }
+
+    function isFacultyOrAdmin() {
+      return isActiveUser() && currentRole() in ['faculty', 'admin'];
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isStudentEmail() {
+      return request.auth.token.email.matches('.*@btech[.]christuniversity[.]in$');
+    }
+
+    function isFacultyEmail() {
+      return request.auth.token.email.matches('.*@christuniversity[.]in$')
+        && !isStudentEmail();
+    }
+
+    function validProfileShape() {
+      return request.resource.data.keys().hasAll([
+        'id',
+        'email',
+        'full_name',
+        'role',
+        'requested_role',
+        'status',
+        'department',
+        'created_at',
+        'updated_at'
+      ])
+      && request.resource.data.keys().hasOnly([
+        'id',
+        'email',
+        'full_name',
+        'role',
+        'requested_role',
+        'status',
+        'department',
+        'phone',
+        'register_number',
+        'specialization',
+        'year_of_passout',
+        'approved_by',
+        'approved_at',
+        'suspended_at',
+        'email_verified_at',
+        'created_at',
+        'updated_at'
+      ])
+      && request.resource.data.id is string
+      && request.resource.data.email is string
+      && request.resource.data.full_name is string
+      && request.resource.data.role in ['student', 'faculty']
+      && request.resource.data.requested_role in ['student', 'faculty']
+      && request.resource.data.status in ['active', 'pending_approval', 'suspended']
+      && request.resource.data.department is string
+      && (request.resource.data.phone == null || request.resource.data.phone is string)
+      && (request.resource.data.register_number == null || request.resource.data.register_number is string)
+      && (request.resource.data.specialization == null || request.resource.data.specialization is string)
+      && (request.resource.data.year_of_passout == null || request.resource.data.year_of_passout is string)
+      && (request.resource.data.approved_by == null || request.resource.data.approved_by is string)
+      && (request.resource.data.approved_at == null || request.resource.data.approved_at is string)
+      && (request.resource.data.suspended_at == null || request.resource.data.suspended_at is string)
+      && (request.resource.data.email_verified_at == null || request.resource.data.email_verified_at is string)
+      && request.resource.data.created_at is string
+      && request.resource.data.updated_at is string;
+    }
+
+    function validSelfSignupProfile() {
+      return validProfileShape()
+        && request.resource.data.id == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.approved_by == null
+        && request.resource.data.approved_at == null
+        && request.resource.data.suspended_at == null
+        && request.resource.data.email_verified_at == null
+        && (
+          (
+            request.resource.data.role == 'student'
+            && request.resource.data.requested_role == 'student'
+            && request.resource.data.status == 'active'
+            && isStudentEmail()
+          )
+          || (
+            request.resource.data.role == 'faculty'
+            && request.resource.data.requested_role == 'faculty'
+            && request.resource.data.status == 'pending_approval'
+            && isFacultyEmail()
+          )
+        );
+    }
+
+    function profileIdentityUnchanged() {
+      return request.resource.data.id == resource.data.id
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.requested_role == resource.data.requested_role
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.approved_by == resource.data.approved_by
+        && request.resource.data.approved_at == resource.data.approved_at
+        && request.resource.data.suspended_at == resource.data.suspended_at
+        && request.resource.data.email_verified_at == resource.data.email_verified_at
+        && request.resource.data.created_at == resource.data.created_at;
+    }
+
+    match /profiles/{profileId} {
+      allow get: if isOwner(profileId) || isFacultyOrAdmin();
+      allow list: if isFacultyOrAdmin();
+      allow create: if signedIn()
+        && isOwner(profileId)
+        && validSelfSignupProfile();
+      allow update: if isOwner(profileId)
+        && emailVerified()
+        && validProfileShape()
+        && profileIdentityUnchanged()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'full_name',
+          'department',
+          'phone',
+          'register_number',
+          'specialization',
+          'year_of_passout',
+          'updated_at'
+        ]);
+      allow delete: if false;
+    }
+
+    match /machines/{machineId} {
+      allow read: if isActiveUser() && (resource.data.is_active == true || isFacultyOrAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isActiveUser()
+        && (resource.data.student_id == request.auth.uid || isFacultyOrAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /booking_slots/{slotId} {
+      allow read: if isFacultyOrAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /booking_rules/{ruleId} {
+      allow read: if isActiveUser();
+      allow write: if false;
+    }
+
+    match /audit_log/{logId} {
+      allow read: if isFacultyOrAdmin();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

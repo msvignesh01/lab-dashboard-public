@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "lab-dashboard-2809",
+    "production": "lab-dashboard-2809"
+  }
+}
