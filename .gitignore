@@ -31,6 +31,7 @@ coverage
 .env
 .env.test
 .env.production
+.env*.tmp
 
 # Build artifacts
 build/
