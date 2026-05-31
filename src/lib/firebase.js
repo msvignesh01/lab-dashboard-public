@@ -16,7 +16,6 @@ const requiredConfigKeys = [
     'apiKey',
     'authDomain',
     'projectId',
-    'storageBucket',
     'messagingSenderId',
     'appId',
 ]

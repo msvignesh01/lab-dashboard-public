@@ -65,10 +65,12 @@ Create `.env` locally and configure the same values in Vercel for production/pre
 VITE_FIREBASE_API_KEY=your-api-key
 VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 VITE_FIREBASE_APP_ID=your-app-id
 VITE_FIREBASE_MEASUREMENT_ID=your-measurement-id
+
+# Optional; only needed if a future feature uses Firebase Storage.
+VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
 
 FIREBASE_ADMIN_PROJECT_ID=your-project-id
 FIREBASE_ADMIN_CLIENT_EMAIL=your-service-account@your-project-id.iam.gserviceaccount.com
@@ -138,7 +140,7 @@ The Vercel project must have:
 - Output directory: `dist`
 - Install command: `npm ci`
 - Node.js runtime: Node 22.x
-- All required `VITE_FIREBASE_*` and `FIREBASE_ADMIN_*` env vars
+- Required Firebase client env vars, Firebase Admin env vars, and `BOOTSTRAP_ADMIN_EMAILS`
 
 After Vercel env vars are configured:
 
@@ -153,7 +155,6 @@ vercel --prod
 - `machines/{machineId}`: lab equipment catalog and availability.
 - `bookings/{bookingId}`: student booking requests and review state.
 - `booking_slots/{machineId}_{date}_{HHmm}`: server-owned conflict locks.
-- `booking_rules/{ruleId}`: reserved future rules.
 - `audit_log/{logId}`: restricted audit records.
 
 ## Security Model

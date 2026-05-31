@@ -25,7 +25,6 @@ Firebase Storage, Firebase Functions, Firebase Hosting, and Firebase App Hosting
 - `machines/{machineId}`: lab machine catalog.
 - `bookings/{bookingId}`: booking requests and review state.
 - `booking_slots/{machineId}_{date}_{HHmm}`: one document per booked minute, used by server transactions to prevent overlaps.
-- `booking_rules/{ruleId}`: reserved for future constraints.
 - `audit_log/{logId}`: restricted audit records.
 
 ## Deploy Rules And Indexes
@@ -41,6 +40,30 @@ Do not loosen rules to make a UI flow work. If a flow fails with permission deni
 Set `BOOTSTRAP_ADMIN_EMAILS` in Vercel to one or more comma-separated verified admin emails. When one of those users signs in with a verified Firebase Auth account, the trusted API normalizes that profile to active admin.
 
 For operator-facing steps to add students, faculty reviewers, and admins, see [`ACCESS_MANAGEMENT.md`](../ACCESS_MANAGEMENT.md).
+
+## Optional Firebase MCP Setup
+
+Do not commit personal Codex `config.toml` files. If Codex asks for local Firebase MCP config, create it locally with a sanitized project root:
+
+```toml
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[mcp_servers.firebase]
+command = "npx"
+args = [
+  "-y",
+  "firebase-tools@latest",
+  "mcp",
+  "--dir",
+  "<PROJECT_ROOT>",
+  "--only",
+  "auth,firestore"
+]
+startup_timeout_sec = 30
+tool_timeout_sec = 120
+default_tools_approval_mode = "prompt"
+```
 
 ## Migration
 
