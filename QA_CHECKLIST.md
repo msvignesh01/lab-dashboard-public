@@ -49,18 +49,20 @@ Expected: deployed app does not show the missing-config unavailable screen, and 
 
 ## 4. Auth And Role Lifecycle
 
-1. Sign up a student with a valid student email.
+1. Sign up a student with a `@btech.christuniversity.in` email.
 2. Verify the student email.
-3. Sign up a faculty user with a valid faculty email.
+3. Sign up a faculty user with a `@christuniversity.in` email.
 4. Verify the faculty email.
-5. Sign in as bootstrap admin and approve the faculty request.
+5. Sign in once as the faculty user after verification so the backend records `email_verified_at`.
+6. Sign in as bootstrap admin and approve the faculty request from **Admin Console > Faculty Access**.
 
 Expected:
 
 - Unverified users see the verify-email gate.
-- Faculty users remain pending until approved.
+- Faculty users remain pending until approved, and unverified faculty requests cannot be approved.
 - Students cannot access faculty/admin screens.
 - Bootstrap admin is active only for configured emails.
+- Operator instructions match [`ACCESS_MANAGEMENT.md`](./ACCESS_MANAGEMENT.md).
 
 ## 5. Booking Flow
 

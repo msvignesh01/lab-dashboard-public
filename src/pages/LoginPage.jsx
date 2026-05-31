@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
 import { securityUtils } from '@/lib/security';
-import { RATE_LIMIT } from '@/lib/constants';
+import { EMAIL_DOMAINS, RATE_LIMIT } from '@/lib/constants';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -155,13 +155,16 @@ const LoginPage = () => {
                                 <Input
                                     id="login-email"
                                     type="email"
-                                    placeholder="your@university.edu"
+                                    placeholder={`your.name${EMAIL_DOMAINS.FACULTY}`}
                                     value={email}
                                     onChange={handleEmailChange}
                                     required
                                     autoComplete="email"
                                     maxLength={254}
                                 />
+                                <p className="text-xs text-muted-foreground">
+                                    Students use {EMAIL_DOMAINS.STUDENT}; faculty and admins use {EMAIL_DOMAINS.FACULTY}.
+                                </p>
                             </div>
                             <div className="space-y-2">
                                 <label htmlFor="login-password" className="text-sm font-medium leading-none">Password</label>

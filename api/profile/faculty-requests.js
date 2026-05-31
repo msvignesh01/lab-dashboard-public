@@ -18,6 +18,7 @@ export default handleApi(async (req, res) => {
         .get()
 
     const requests = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((profile) => Boolean(profile.email_verified_at))
         .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
 
     return sendOk(res, requests)

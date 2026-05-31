@@ -15,11 +15,15 @@ Do not deploy this app as Firebase Hosting-only unless the `/api/*` backend is a
 
 ## Core Flows
 
-- Students sign up with a verified university email, browse active machines, request future booking slots, track status, and cancel eligible future bookings.
-- Faculty users request access and remain pending until an admin approves them.
+- Students sign up with a verified `@btech.christuniversity.in` email, browse active machines, request future booking slots, track status, and cancel eligible future bookings.
+- Faculty users sign up with a verified `@christuniversity.in` email and remain pending until an admin approves them.
 - Faculty/admin users review pending booking requests through trusted API transactions.
 - Admin users manage machines and approve faculty access.
 - Booking conflicts are blocked by deterministic per-minute `booking_slots` created in Firestore transactions.
+
+## Access Operations
+
+Use [ACCESS_MANAGEMENT.md](./ACCESS_MANAGEMENT.md) for user-facing/operator instructions on adding students, approving faculty, bootstrapping the first admin, adding later admins, suspending users, and managing machine access.
 
 ## Project Structure
 
@@ -133,7 +137,7 @@ The Vercel project must have:
 - Build command: `npm run vercel-build`
 - Output directory: `dist`
 - Install command: `npm ci`
-- Node.js runtime: Node 20+ or Node 22
+- Node.js runtime: Node 22.x
 - All required `VITE_FIREBASE_*` and `FIREBASE_ADMIN_*` env vars
 
 After Vercel env vars are configured:

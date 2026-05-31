@@ -40,6 +40,8 @@ Do not loosen rules to make a UI flow work. If a flow fails with permission deni
 
 Set `BOOTSTRAP_ADMIN_EMAILS` in Vercel to one or more comma-separated verified admin emails. When one of those users signs in with a verified Firebase Auth account, the trusted API normalizes that profile to active admin.
 
+For operator-facing steps to add students, faculty reviewers, and admins, see [`ACCESS_MANAGEMENT.md`](../ACCESS_MANAGEMENT.md).
+
 ## Migration
 
 Dry-run first:

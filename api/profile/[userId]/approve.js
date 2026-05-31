@@ -1,4 +1,4 @@
-import { adminDb } from '../../_lib/firebaseAdmin.js'
+import { adminAuth, adminDb } from '../../_lib/firebaseAdmin.js'
 import { getAuthenticatedContext } from '../../_lib/authContext.js'
 import { assertMethod, getRouteParam, handleApi, sendOk, ApiError } from '../../_lib/http.js'
 import { isValidFirestoreId } from '../../_lib/ids.js'
@@ -30,13 +30,27 @@ export default handleApi(async (req, res) => {
         throw new ApiError(409, 'This account is not pending faculty approval.', 'not_pending_faculty')
     }
 
+    let authUser
+    try {
+        authUser = await adminAuth.getUser(userId)
+    } catch {
+        throw new ApiError(404, 'Firebase Auth user not found.', 'auth_user_not_found')
+    }
+
+    if (authUser.emailVerified !== true) {
+        throw new ApiError(409, 'Faculty account must verify email before approval.', 'email_not_verified')
+    }
+
+    const now = nowIso()
+    const verifiedAt = profile.email_verified_at || now
     const update = {
         role: 'faculty',
         status: 'active',
         approved_by: context.uid,
-        approved_at: nowIso(),
+        approved_at: now,
         suspended_at: null,
-        updated_at: nowIso(),
+        email_verified_at: verifiedAt,
+        updated_at: now,
     }
 
     await profileRef.update(update)
