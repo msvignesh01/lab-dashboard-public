@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AML Lab">
-  <rect width="64" height="64" rx="14" fill="#2563eb"/>
-  <path d="M25 14h14v8H25z" fill="#dbeafe"/>
-  <path d="M32 22v14" stroke="#dbeafe" stroke-width="5" stroke-linecap="round"/>
-  <path d="M22 38h20" stroke="#dbeafe" stroke-width="5" stroke-linecap="round"/>
-  <path d="M26 50h12" stroke="#dbeafe" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="32" cy="32" r="7" fill="#bfdbfe"/>
-  <circle cx="32" cy="32" r="3" fill="#1d4ed8"/>
+  <rect width="64" height="64" rx="14" fill="#1d4ed8"/>
+  <path d="M22 13h20a4 4 0 0 1 4 4v7H18v-7a4 4 0 0 1 4-4Z" fill="#dbeafe"/>
+  <path d="M22 24h20l-5 13H27l-5-13Z" fill="#f8fafc"/>
+  <path d="M29 37h6v5h-6z" fill="#facc15"/>
+  <path d="M18 46h28" stroke="#f8fafc" stroke-width="5" stroke-linecap="round"/>
+  <path d="M22 54h20" stroke="#bfdbfe" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="32" cy="19" r="3" fill="#1d4ed8"/>
 </svg>
