@@ -34,6 +34,8 @@ npm audit --omit=dev
 6. Configure Vercel preview env vars for the intended Firebase test project.
 7. Run the manual QA checklist against the preview URL.
 
+If the Vercel project has Deployment Protection enabled, branch preview URLs may show Vercel Authentication before the app. Testers should either sign in with an authorized Vercel account or use a deliberately created temporary bypass/shareable link. Do not paste bypass secrets into source, docs, tickets, or screenshots, and revoke temporary bypass access after testing.
+
 ## Firebase Test Project Flow
 
 Use a separate Firebase project for manual branch testing whenever possible.
