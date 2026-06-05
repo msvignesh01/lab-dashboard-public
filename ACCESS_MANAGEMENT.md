@@ -50,7 +50,7 @@ The first admin is created through the deployment environment variable `BOOTSTRA
 Example:
 
 ```text
-BOOTSTRAP_ADMIN_EMAILS=lab.admin@christuniversity.in,second.admin@christuniversity.in
+BOOTSTRAP_ADMIN_EMAILS=<primary-admin-email>,<secondary-admin-email>
 ```
 
 Keep this list small. It is a production privilege boundary.

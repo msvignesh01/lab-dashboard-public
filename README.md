@@ -5,10 +5,10 @@ A production-oriented university lab equipment booking system for the Additive M
 ## Current Production Architecture
 
 - React 19 + Vite frontend.
-- Vercel hosts the web app and serverless `/api/*` routes.
+- Vercel hosts the web app and a single catch-all serverless `/api/*` gateway.
 - Firebase Authentication is the identity provider.
 - Cloud Firestore stores profiles, machines, bookings, slot locks, and audit records.
-- Firebase Admin SDK runs only in trusted server-side API routes.
+- Firebase Admin SDK runs only in trusted server-side handlers imported by the API gateway.
 - Firestore client SDK is used for safe reads and realtime subscriptions.
 
 Do not deploy this app as Firebase Hosting-only unless the `/api/*` backend is also moved to Firebase Functions or another backend. The current app expects Vercel-compatible serverless API routes.
@@ -28,7 +28,8 @@ Use [ACCESS_MANAGEMENT.md](./ACCESS_MANAGEMENT.md) for user-facing/operator inst
 ## Project Structure
 
 ```text
-api/                 Vercel serverless API routes
+api/                 Vercel API gateway entrypoint
+server/              Private API handlers, policies, validation, and Firebase Admin code
 firebase/            Firestore rules and indexes
 scripts/             Firebase Admin migration utilities
 src/                 React application source
@@ -48,7 +49,7 @@ Firebase:
 Vercel:
 
 - Static frontend hosting.
-- Serverless Functions for `/api/bookings`, `/api/machines`, `/api/profile`, and `/api/internal/sync`.
+- A serverless `/api/*` gateway for bookings, machines, profiles, users, notifications, audit, training, maintenance, and internal sync.
 
 Not currently required:
 
@@ -75,7 +76,7 @@ VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
 FIREBASE_ADMIN_PROJECT_ID=your-project-id
 FIREBASE_ADMIN_CLIENT_EMAIL=your-service-account@your-project-id.iam.gserviceaccount.com
 FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-BOOTSTRAP_ADMIN_EMAILS=first.admin@christuniversity.in
+BOOTSTRAP_ADMIN_EMAILS=<bootstrap-admin-email-1>,<bootstrap-admin-email-2>
 ```
 
 Optional Google Sheets audit sync:
