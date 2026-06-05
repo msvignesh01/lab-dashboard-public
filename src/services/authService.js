@@ -2,6 +2,7 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   updateProfile,
@@ -231,6 +232,20 @@ export const authService = {
       return { error: null }
     } catch (err) {
       securityUtils.secureLog('warn', 'Email verification resend failed', err.message)
+      return { error: mapAuthError(err) }
+    }
+  },
+
+  sendPasswordReset: async (email) => {
+    try {
+      const normalizedEmail = typeof email === 'string' ? email.toLowerCase().trim() : ''
+      if (!securityUtils.validateEmail(normalizedEmail)) {
+        return { error: { message: 'Enter a valid university email address.', code: 'invalid_email' } }
+      }
+      await sendPasswordResetEmail(firebaseAuth, normalizedEmail)
+      return { error: null }
+    } catch (err) {
+      securityUtils.secureLog('warn', 'Password reset failed', { email: securityUtils.maskEmail(email), reason: err.message })
       return { error: mapAuthError(err) }
     }
   },

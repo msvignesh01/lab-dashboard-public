@@ -3,17 +3,20 @@ import { getAuthenticatedContext } from '../_lib/authContext.js'
 import { assertMethod, getRouteParam, handleApi, parseJsonBody, sendOk, ApiError } from '../_lib/http.js'
 import { isValidFirestoreId } from '../_lib/ids.js'
 import { sanitizeMachinePayload } from '../_lib/machinePolicy.js'
+import { writeAuditLog } from '../_lib/audit.js'
+import { assertRateLimit } from '../_lib/rateLimit.js'
 
 const nowIso = () => new Date().toISOString()
 
 export default handleApi(async (req, res) => {
     assertMethod(req, ['PATCH', 'DELETE'])
 
-    await getAuthenticatedContext(req, {
+    const context = await getAuthenticatedContext(req, {
         requireVerified: true,
         requireActive: true,
         roles: ['faculty', 'admin'],
     })
+    await assertRateLimit({ uid: context.uid, action: `machine_${req.method.toLowerCase()}`, limit: 40, windowMs: 60_000 })
 
     const machineId = getRouteParam(req, 'machineId')
     if (!isValidFirestoreId(machineId)) {
@@ -35,6 +38,13 @@ export default handleApi(async (req, res) => {
 
         await machineRef.update(update)
         const updatedSnap = await machineRef.get()
+        await writeAuditLog({
+            actor: context,
+            action: 'machine.updated',
+            entity_type: 'machine',
+            entity_id: machineId,
+            metadata: { fields: Object.keys(update) },
+        })
         return sendOk(res, { id: updatedSnap.id, ...updatedSnap.data() })
     }
 
@@ -51,6 +61,13 @@ export default handleApi(async (req, res) => {
         }
         await machineRef.update(update)
         const updatedSnap = await machineRef.get()
+        await writeAuditLog({
+            actor: context,
+            action: 'machine.deactivated',
+            entity_type: 'machine',
+            entity_id: machineId,
+            metadata: { historical_bookings: true },
+        })
         return sendOk(res, {
             deleted: false,
             machine: { id: updatedSnap.id, ...updatedSnap.data() },
@@ -59,5 +76,12 @@ export default handleApi(async (req, res) => {
     }
 
     await machineRef.delete()
+    await writeAuditLog({
+        actor: context,
+        action: 'machine.deleted',
+        entity_type: 'machine',
+        entity_id: machineId,
+        metadata: { historical_bookings: false },
+    })
     return sendOk(res, { deleted: true, id: machineId })
 })

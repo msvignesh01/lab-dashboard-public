@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { ChevronRight, Check } from 'lucide-react';
+import { ChevronRight, Check, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,6 +24,9 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [formError, setFormError] = useState('');
+    const [availability, setAvailability] = useState(null);
+    const [availabilityLoading, setAvailabilityLoading] = useState(false);
+    const [availabilityError, setAvailabilityError] = useState(null);
     const [formData, setFormData] = useState({
         date: format(new Date(), 'yyyy-MM-dd'),
         startTime: '09:00',
@@ -35,6 +38,33 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
         const { name, value } = e.target;
         setFormError('');
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const fetchAvailability = useCallback(async () => {
+        if (!machine?.id || !formData.date) return;
+        setAvailabilityLoading(true);
+        setAvailabilityError(null);
+        const { data, error } = await bookingService.getAvailability(machine.id, formData.date);
+        if (error) {
+            setAvailability(null);
+            setAvailabilityError(error);
+        } else {
+            setAvailability(data);
+        }
+        setAvailabilityLoading(false);
+    }, [machine?.id, formData.date]);
+
+    useEffect(() => {
+        fetchAvailability();
+    }, [fetchAvailability]);
+
+    const selectSlot = (interval) => {
+        setFormError('');
+        setFormData((current) => ({
+            ...current,
+            startTime: interval.start_time.slice(0, 5),
+            endTime: interval.end_time.slice(0, 5),
+        }));
     };
 
     const handleSubmit = async (e) => {
@@ -156,6 +186,40 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
                                     onChange={handleChange}
                                     required
                                 />
+                            </div>
+                            <div className="rounded-lg border bg-muted/20 p-3">
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-sm font-medium">Available Slots</p>
+                                        <p className="text-xs text-muted-foreground">Choose one of the open lab windows, then fine-tune if needed.</p>
+                                    </div>
+                                    <Button type="button" variant="ghost" size="icon" onClick={fetchAvailability} disabled={availabilityLoading} aria-label="Refresh availability">
+                                        <RefreshCw className={availabilityLoading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+                                    </Button>
+                                </div>
+                                {availabilityLoading ? (
+                                    <div className="h-10 animate-pulse rounded-md bg-muted" />
+                                ) : availabilityError ? (
+                                    <p className="text-sm text-destructive" role="alert">{availabilityError.message || 'Unable to load availability.'}</p>
+                                ) : availability?.eligible === false ? (
+                                    <p className="text-sm text-destructive" role="alert">Training approval is required before this machine can be booked.</p>
+                                ) : availability?.available_intervals?.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2">
+                                        {availability.available_intervals.map((interval) => (
+                                            <Button
+                                                type="button"
+                                                key={`${interval.start_time}-${interval.end_time}`}
+                                                variant={formData.startTime === interval.start_time.slice(0, 5) && formData.endTime === interval.end_time.slice(0, 5) ? 'default' : 'outline'}
+                                                size="sm"
+                                                onClick={() => selectSlot(interval)}
+                                            >
+                                                {interval.start_time.slice(0, 5)} - {interval.end_time.slice(0, 5)}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No available slots for this date.</p>
+                                )}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">

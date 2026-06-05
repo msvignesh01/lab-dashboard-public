@@ -87,6 +87,14 @@ GCP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 AUDIT_SHEET_ID=your-google-sheet-id
 ```
 
+Optional transactional email for booking, access, training, and maintenance notifications:
+
+```env
+EMAIL_PROVIDER_API_KEY=your-email-provider-api-key
+NOTIFICATION_FROM_EMAIL=AML Lab <no-reply@your-domain.example>
+EMAIL_PROVIDER_ENDPOINT=https://api.resend.com/emails
+```
+
 Never commit `.env`, service account JSON, or private keys.
 
 ## Local Development
@@ -103,21 +111,43 @@ Open <http://localhost:5173>.
 ```bash
 npm run lint
 npm test
+npm run test:rules
 npm run build
 npm run vercel-build
 npm audit --omit=dev
 ```
 
+`npm run test:rules` requires Java because it starts the Firestore emulator. Run it before production rule deployments and in CI environments that have Java available.
+
+## Production Readiness
+
+Code passing locally is not the same as production sign-off. A release is production-ready only after:
+
+- The branch preview deploy builds successfully on Vercel.
+- Preview env vars point to the intended Firebase project.
+- Firestore rules and indexes are deployed to the intended Firebase project.
+- `npm run test:rules` passes in an environment with Java.
+- The hardening migration dry-run is reviewed; apply mode is run only after approval.
+- Bootstrap admin emails are configured only in Vercel/Firebase environment, never in source or docs.
+- Manual student, faculty, and admin flows pass the production QA checklist.
+
+See [RELEASE_READINESS.md](./RELEASE_READINESS.md) for the rollout sequence.
+
 ## Firebase Setup
 
 This repository is configured for Firebase project `lab-dashboard-2809`.
+
+Project aliases:
+
+- `production`: `lab-dashboard-2809`
+- `preview`: `aml-lab-dash-test-2809`
 
 1. Enable Email/Password sign-in in Firebase Authentication.
 2. Create the default Firestore database in production mode.
 3. Deploy Firestore rules and indexes:
 
 ```bash
-firebase deploy --only firestore:rules,firestore:indexes --project lab-dashboard-2809
+firebase deploy --only firestore:rules,firestore:indexes --project production
 ```
 
 4. Run the hardening migration dry-run before applying data normalization:
@@ -131,6 +161,8 @@ npm run migrate:hardening
 ```bash
 node scripts/migrate-production-hardening.js --apply
 ```
+
+For branch/manual testing, use the isolated `preview` Firebase project instead of pointing previews at production data. Configure the same Auth provider, Firestore rules, indexes, and Vercel preview env vars for that test project.
 
 ## Vercel Deployment
 
@@ -155,6 +187,10 @@ vercel --prod
 - `machines/{machineId}`: lab equipment catalog and availability.
 - `bookings/{bookingId}`: student booking requests and review state.
 - `booking_slots/{machineId}_{date}_{HHmm}`: server-owned conflict locks.
+- `lab_config/default`: lab hours, active weekdays, and booking limits.
+- `maintenance_windows/{windowId}`: machine or whole-lab blocked time.
+- `training_records/{studentId_machineId}`: machine training eligibility.
+- `notifications/{notificationId}`: user-facing in-app/email notification state.
 - `audit_log/{logId}`: restricted audit records.
 
 ## Security Model
@@ -165,6 +201,8 @@ vercel --prod
 - Critical mutations run through server-side Firebase Admin SDK routes.
 - Bootstrap admins are controlled by `BOOTSTRAP_ADMIN_EMAILS`.
 - Audit sync escapes spreadsheet formula prefixes and writes with RAW input mode.
+- Training-required machines are blocked until a faculty/admin training record approves the student.
+- Lab hours and maintenance windows are enforced by trusted booking APIs.
 
 ## CI
 

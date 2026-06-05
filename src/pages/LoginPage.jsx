@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { securityUtils } from '@/lib/security';
 import { EMAIL_DOMAINS, RATE_LIMIT } from '@/lib/constants';
+import CreatorCredit from '@/components/CreatorCredit';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -18,7 +19,7 @@ const LoginPage = () => {
     const [loading, setLoading] = useState(false);
     const [isLocked, setIsLocked] = useState(false);
     const [lockoutRemaining, setLockoutRemaining] = useState(0);
-    const { signIn } = useAuth();
+    const { signIn, sendPasswordReset } = useAuth();
     const navigate = useNavigate();
 
     // Client-side throttle for repeated mistakes. Firebase Auth remains authoritative.
@@ -129,6 +130,16 @@ const LoginPage = () => {
         setEmail(e.target.value);
     };
 
+    const handlePasswordReset = async () => {
+        const trimmedEmail = email.toLowerCase().trim();
+        const { error } = await sendPasswordReset(trimmedEmail);
+        if (error) {
+            toast.error(error.message || 'Unable to send password reset email');
+            return;
+        }
+        toast.success('Password reset email sent. Check your university inbox.');
+    };
+
     return (
         <div className="min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
             <motion.div
@@ -192,6 +203,9 @@ const LoginPage = () => {
                             <Button type="submit" className="w-full font-bold" disabled={loading || isLocked}>
                                 <LogIn className="mr-2 h-4 w-4" /> {isLocked ? `Locked (${lockoutRemaining}s)` : loading ? 'Signing in...' : 'Sign In'}
                             </Button>
+                            <Button type="button" variant="ghost" className="w-full" onClick={handlePasswordReset} disabled={!email || loading}>
+                                Forgot password?
+                            </Button>
                             {isLocked && (
                                 <p className="text-xs text-destructive text-center mt-2" role="alert" aria-live="assertive">
                                     Too many failed attempts. Please wait {lockoutRemaining} seconds.
@@ -205,6 +219,7 @@ const LoginPage = () => {
                         </p>
                     </CardFooter>
                 </Card>
+                <CreatorCredit />
             </motion.div>
         </div>
     );

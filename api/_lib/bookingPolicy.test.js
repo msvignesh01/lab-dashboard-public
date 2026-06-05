@@ -37,6 +37,27 @@ describe('server booking policy', () => {
         }, { uid: 'student-1', now: fixedNow })).toThrow(/30 days/)
     })
 
+    it('honors server-configured booking limits', () => {
+        expect(() => validateBookingPayload({
+            ...validPayload,
+            start_time: '11:00',
+            end_time: '14:30',
+        }, {
+            uid: 'student-1',
+            now: fixedNow,
+            limits: { max_duration_hours: 3, max_advance_days: 30 },
+        })).toThrow(/3 hours/)
+
+        expect(() => validateBookingPayload({
+            ...validPayload,
+            booking_date: '2026-05-09',
+        }, {
+            uid: 'student-1',
+            now: fixedNow,
+            limits: { max_duration_hours: 8, max_advance_days: 5 },
+        })).toThrow(/5 days/)
+    })
+
     it('generates deterministic minute slot IDs', () => {
         const booking = {
             id: 'booking-1',

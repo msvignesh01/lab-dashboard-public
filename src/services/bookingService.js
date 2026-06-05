@@ -87,6 +87,25 @@ const enrichBookings = async (bookings, { includeMachines = true, includeProfile
 }
 
 export const bookingService = {
+    getAvailability: async (machineId, date) => {
+        if (!securityUtils.validateFirestoreId(machineId)) {
+            return { data: null, error: { message: 'Invalid machine ID' } }
+        }
+        return apiRequest(`/api/machines/${machineId}/availability?date=${encodeURIComponent(date)}`, {
+            forceRefreshToken: true,
+        })
+    },
+
+    getBookings: async (params = {}) => {
+        const search = new URLSearchParams()
+        for (const [key, value] of Object.entries(params)) {
+            if (value) search.set(key, value)
+        }
+        return apiRequest(`/api/bookings${search.toString() ? `?${search.toString()}` : ''}`, {
+            forceRefreshToken: true,
+        })
+    },
+
     /**
      * Create a new booking with security validation
      * @param {object} bookingData - { machine_id, student_id, booking_date, start_time, end_time, purpose }
@@ -247,7 +266,7 @@ export const bookingService = {
     /**
      * Update booking status with security validation
      * @param {string} bookingId
-     * @param {string} status - 'approved', 'rejected', 'cancelled'
+     * @param {string} status - 'approved' or 'rejected'
      * @param {string} [comments]
      */
     updateBookingStatus: async (bookingId, status, comments) => {
@@ -256,7 +275,7 @@ export const bookingService = {
                 return { data: null, error: { message: 'Invalid booking ID' } }
             }
 
-            const validStatuses = ['approved', 'rejected', 'cancelled']
+            const validStatuses = ['approved', 'rejected']
             if (!status || !validStatuses.includes(status)) {
                 return { data: null, error: { message: 'Invalid status' } }
             }

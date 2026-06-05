@@ -8,6 +8,9 @@ import {
     getSlotId,
     getSlotMinutes,
 } from '../../_lib/bookingPolicy.js'
+import { writeAuditLog } from '../../_lib/audit.js'
+import { createNotification } from '../../_lib/notifications.js'
+import { assertRateLimit } from '../../_lib/rateLimit.js'
 
 const nowIso = () => new Date().toISOString()
 
@@ -19,6 +22,7 @@ export default handleApi(async (req, res) => {
         requireActive: true,
         roles: ['faculty', 'admin'],
     })
+    await assertRateLimit({ uid: context.uid, action: 'booking_review', limit: 60, windowMs: 60_000 })
     const bookingId = getRouteParam(req, 'bookingId')
     const body = await parseJsonBody(req)
 
@@ -88,7 +92,34 @@ export default handleApi(async (req, res) => {
                 transaction.delete(slot.ref)
             }
         }
+
+        writeAuditLog({
+            transaction,
+            actor: context,
+            action: status === 'approved' ? 'booking.approved' : 'booking.rejected',
+            entity_type: 'booking',
+            entity_id: bookingId,
+            metadata: {
+                status,
+                machine_id: booking.machine_id,
+                student_id: booking.student_id,
+            },
+        })
     })
+
+    const studentSnap = await adminDb.collection('profiles').doc(updatedBooking.student_id).get()
+    if (studentSnap.exists) {
+        await createNotification({
+            profile: { id: studentSnap.id, ...studentSnap.data() },
+            type: status === 'approved' ? 'booking_approved' : 'booking_rejected',
+            title: status === 'approved' ? 'Booking approved' : 'Booking rejected',
+            message: status === 'approved'
+                ? 'Your booking request was approved.'
+                : comments || 'Your booking request was rejected.',
+            entity: { type: 'booking', id: bookingId },
+            email: true,
+        }).catch(() => {})
+    }
 
     return sendOk(res, updatedBooking)
 })

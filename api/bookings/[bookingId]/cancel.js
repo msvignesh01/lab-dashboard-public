@@ -8,6 +8,9 @@ import {
     getSlotMinutes,
     isActiveBookingStatus,
 } from '../../_lib/bookingPolicy.js'
+import { writeAuditLog } from '../../_lib/audit.js'
+import { createNotification, notifyFacultyAndAdmins } from '../../_lib/notifications.js'
+import { assertRateLimit } from '../../_lib/rateLimit.js'
 
 const nowIso = () => new Date().toISOString()
 
@@ -19,6 +22,7 @@ export default handleApi(async (req, res) => {
         requireActive: true,
         roles: ['student'],
     })
+    await assertRateLimit({ uid: context.uid, action: 'booking_cancel', limit: 30, windowMs: 60_000 })
     const bookingId = getRouteParam(req, 'bookingId')
 
     if (!isValidFirestoreId(bookingId)) {
@@ -57,7 +61,35 @@ export default handleApi(async (req, res) => {
         for (const minute of getSlotMinutes(booking)) {
             transaction.delete(adminDb.collection('booking_slots').doc(getSlotId(booking, minute)))
         }
+
+        writeAuditLog({
+            transaction,
+            actor: context,
+            action: 'booking.cancelled',
+            entity_type: 'booking',
+            entity_id: bookingId,
+            metadata: {
+                machine_id: booking.machine_id,
+                booking_date: booking.booking_date,
+                status: booking.status,
+            },
+        })
     })
+
+    await createNotification({
+        profile: context.profile,
+        type: 'booking_cancelled',
+        title: 'Booking cancelled',
+        message: 'Your booking was cancelled and the slot was released.',
+        entity: { type: 'booking', id: bookingId },
+        email: true,
+    }).catch(() => {})
+    await notifyFacultyAndAdmins({
+        type: 'booking_cancelled',
+        title: 'Booking cancelled',
+        message: 'A student cancelled a booking.',
+        entity: { type: 'booking', id: bookingId },
+    }).catch(() => {})
 
     return sendOk(res, updatedBooking)
 })

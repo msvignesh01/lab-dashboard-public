@@ -92,7 +92,7 @@ export const buildSlotRecord = (booking, slotId, minute, status = booking.status
     updated_at: booking.updated_at,
 })
 
-export const validateBookingPayload = (payload, { uid, now = new Date() }) => {
+export const validateBookingPayload = (payload, { uid, now = new Date(), limits = BOOKING_LIMITS }) => {
     if (!payload || typeof payload !== 'object') {
         throw new ApiError(400, 'Invalid booking data.', 'invalid_booking')
     }
@@ -120,12 +120,18 @@ export const validateBookingPayload = (payload, { uid, now = new Date() }) => {
     }
 
     const today = toLabDateString(now)
-    const maxAdvanceDate = addDaysToDateString(today, BOOKING_LIMITS.MAX_ADVANCE_DAYS)
+    const maxAdvanceDays = Number.isInteger(limits.max_advance_days)
+        ? limits.max_advance_days
+        : BOOKING_LIMITS.MAX_ADVANCE_DAYS
+    const maxDurationHours = Number.isInteger(limits.max_duration_hours)
+        ? limits.max_duration_hours
+        : BOOKING_LIMITS.MAX_DURATION_HOURS
+    const maxAdvanceDate = addDaysToDateString(today, maxAdvanceDays)
     if (bookingDate < today) {
         throw new ApiError(400, 'Cannot book for past dates.', 'booking_in_past')
     }
     if (bookingDate > maxAdvanceDate) {
-        throw new ApiError(400, `Cannot book more than ${BOOKING_LIMITS.MAX_ADVANCE_DAYS} days in advance.`, 'booking_too_far_ahead')
+        throw new ApiError(400, `Cannot book more than ${maxAdvanceDays} days in advance.`, 'booking_too_far_ahead')
     }
 
     const bookingStartMs = getBookingStartMs({ booking_date: bookingDate, start_time: startTime })
@@ -134,8 +140,8 @@ export const validateBookingPayload = (payload, { uid, now = new Date() }) => {
     }
 
     const durationHours = (endMinute - startMinute) / 60
-    if (durationHours > BOOKING_LIMITS.MAX_DURATION_HOURS) {
-        throw new ApiError(400, `Booking duration cannot exceed ${BOOKING_LIMITS.MAX_DURATION_HOURS} hours.`, 'booking_too_long')
+    if (durationHours > maxDurationHours) {
+        throw new ApiError(400, `Booking duration cannot exceed ${maxDurationHours} hours.`, 'booking_too_long')
     }
 
     const purpose = typeof payload.purpose === 'string' ? payload.purpose.trim().slice(0, 500) : ''

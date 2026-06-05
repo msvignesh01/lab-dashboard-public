@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Check, RefreshCw, ShieldCheck, UserCheck } from 'lucide-react'
+import { Check, RefreshCw, ShieldCheck, UserCheck, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { profileService } from '@/services/profileService'
 
 const FacultyRequestsManager = () => {
@@ -11,6 +12,9 @@ const FacultyRequestsManager = () => {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [approvingId, setApprovingId] = useState(null)
+    const [rejectingId, setRejectingId] = useState(null)
+    const [rejectTarget, setRejectTarget] = useState(null)
+    const [rejectReason, setRejectReason] = useState('')
 
     const fetchRequests = useCallback(async () => {
         setLoading(true)
@@ -43,7 +47,30 @@ const FacultyRequestsManager = () => {
         setRequests((current) => current.filter((item) => item.id !== request.id))
     }
 
+    const handleReject = async () => {
+        if (!rejectTarget) return
+        if (!rejectReason.trim()) {
+            toast.error('Please provide a rejection reason')
+            return
+        }
+
+        setRejectingId(rejectTarget.id)
+        const { error: rejectError } = await profileService.rejectFacultyRequest(rejectTarget.id, rejectReason.trim())
+        setRejectingId(null)
+
+        if (rejectError) {
+            toast.error(rejectError.message || 'Failed to reject faculty request')
+            return
+        }
+
+        toast.success(`${rejectTarget.full_name || rejectTarget.email} rejected`)
+        setRequests((current) => current.filter((item) => item.id !== rejectTarget.id))
+        setRejectTarget(null)
+        setRejectReason('')
+    }
+
     return (
+        <>
         <Card>
             <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -90,16 +117,46 @@ const FacultyRequestsManager = () => {
                                     <p className="truncate text-sm text-muted-foreground">{request.email}</p>
                                     <p className="text-sm text-muted-foreground">{request.department || 'Department not specified'}</p>
                                 </div>
-                                <Button onClick={() => handleApprove(request)} disabled={approvingId === request.id}>
-                                    <Check className="mr-2 h-4 w-4" />
-                                    {approvingId === request.id ? 'Approving...' : 'Approve'}
-                                </Button>
+                                <div className="flex flex-col gap-2 sm:flex-row">
+                                    <Button variant="outline" onClick={() => setRejectTarget(request)} disabled={rejectingId === request.id || approvingId === request.id}>
+                                        <X className="mr-2 h-4 w-4" />
+                                        {rejectingId === request.id ? 'Rejecting...' : 'Reject'}
+                                    </Button>
+                                    <Button onClick={() => handleApprove(request)} disabled={approvingId === request.id || rejectingId === request.id}>
+                                        <Check className="mr-2 h-4 w-4" />
+                                        {approvingId === request.id ? 'Approving...' : 'Approve'}
+                                    </Button>
+                                </div>
                             </div>
                         ))}
                     </div>
                 )}
             </CardContent>
         </Card>
+        <Dialog open={!!rejectTarget} onOpenChange={(open) => { if (!open) { setRejectTarget(null); setRejectReason('') } }}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Reject faculty request?</DialogTitle>
+                    <DialogDescription>Provide a clear reason so the requester knows what to correct.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2">
+                    <label htmlFor="faculty-reject-reason" className="text-sm font-medium">Reason</label>
+                    <textarea
+                        id="faculty-reject-reason"
+                        className="flex min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => { setRejectTarget(null); setRejectReason('') }} disabled={Boolean(rejectingId)}>Cancel</Button>
+                    <Button variant="destructive" onClick={handleReject} disabled={Boolean(rejectingId)}>
+                        {rejectingId ? 'Rejecting...' : 'Reject request'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        </>
     )
 }
 

@@ -26,11 +26,19 @@ export const getBearerToken = (req) => {
 export const parseJsonBody = async (req) => {
     if (!req.body) return {}
 
+    const maxBytes = 16 * 1024
+
     if (typeof req.body === 'object') {
+        if (Buffer.byteLength(JSON.stringify(req.body), 'utf8') > maxBytes) {
+            throw new ApiError(413, 'Request payload is too large.', 'payload_too_large')
+        }
         return req.body
     }
 
     if (typeof req.body === 'string') {
+        if (Buffer.byteLength(req.body, 'utf8') > maxBytes) {
+            throw new ApiError(413, 'Request payload is too large.', 'payload_too_large')
+        }
         try {
             return JSON.parse(req.body)
         } catch {

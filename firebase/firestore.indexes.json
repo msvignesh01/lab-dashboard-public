@@ -17,6 +17,14 @@
       ]
     },
     {
+      "collectionGroup": "bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "machine_id", "order": "ASCENDING" },
+        { "fieldPath": "booking_date", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "machines",
       "queryScope": "COLLECTION",
       "fields": [
@@ -40,6 +48,30 @@
       "fields": [
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "requested_role", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "maintenance_windows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "start_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "training_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "student_id", "order": "ASCENDING" },
+        { "fieldPath": "machine_id", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "user_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
       ]
     }
   ],

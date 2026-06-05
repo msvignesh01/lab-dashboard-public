@@ -24,6 +24,19 @@ export default defineConfig({
     },
     // Generate source maps only in development
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('firebase') || id.includes('@firebase')) return 'firebase'
+          if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) return 'react'
+          if (id.includes('@radix-ui')) return 'radix'
+          if (id.includes('lucide-react')) return 'icons'
+          if (id.includes('framer-motion')) return 'motion'
+          if (id.includes('date-fns')) return 'date-fns'
+        },
+      },
+    },
   },
   // Security headers
   server: {

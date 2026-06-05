@@ -7,8 +7,8 @@ This guide is for lab operators who need to onboard students, faculty reviewers,
 | Account type | Email domain | How access is granted | What they can do |
 | --- | --- | --- | --- |
 | Student | `@btech.christuniversity.in` | Self-signup plus email verification | Browse machines, request bookings, track/cancel own eligible bookings |
-| Faculty | `@christuniversity.in` | Self-signup, email verification, then admin approval | Review bookings and manage lab machines |
-| Admin | `@christuniversity.in` | Bootstrap allowlist or explicit admin promotion | Approve faculty access and perform all faculty operations |
+| Faculty | `@christuniversity.in` | Self-signup, email verification, then admin approval | Review bookings and manage lab machines, maintenance windows, and training approvals |
+| Admin | `@christuniversity.in` | Bootstrap allowlist or explicit admin promotion | Approve faculty access, manage users, configure lab rules, and perform all faculty operations |
 
 All users must verify their Firebase Auth email before protected app access works.
 
@@ -30,7 +30,7 @@ No admin approval is needed for student accounts.
 3. They must use a `@christuniversity.in` email address, not a student subdomain.
 4. They verify the email link sent by Firebase.
 5. They sign in once after verification so the backend records the verified state.
-6. An admin signs in and opens **Admin Panel**.
+6. An admin signs in and opens **Admin Console**.
 7. The admin opens **Faculty Access** and approves the pending request.
 
 Until approval, the faculty user sees a pending-approval screen and cannot review bookings or manage machines.
@@ -63,7 +63,7 @@ Preferred method:
 2. Redeploy.
 3. Have the new admin sign up/sign in and verify their email.
 4. Have them sign in once after verification.
-5. Confirm they can access **Admin Panel**.
+5. Confirm they can access **Admin Console**.
 
 Emergency/manual method:
 
@@ -94,9 +94,10 @@ Do not delete profiles casually; bookings and audit history depend on stable use
 
 ## Machine Access
 
-Faculty and admins can manage machines from **Admin Panel**.
+Faculty and admins can manage machines from **Operations** or **Admin Console**.
 
 - Machines with historical bookings are deactivated instead of hard-deleted.
 - Students only see active machines.
 - Image URLs must use HTTPS.
 - Training requirements and specifications should be kept accurate because students rely on this information before booking.
+- Machines marked as training-required cannot be booked by a student until a faculty/admin creates an active training approval.
