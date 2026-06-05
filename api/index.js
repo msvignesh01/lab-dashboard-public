@@ -30,13 +30,19 @@ const withParams = (req, params) => {
     return req
 }
 
-const getPathParts = (req) => {
-    const url = new URL(req.url || '/', 'https://local.invalid')
-    return url.pathname
-        .replace(/^\/api\/?/, '')
+const toPathParts = (value) => {
+    return String(value || '')
         .split('/')
         .filter(Boolean)
         .map((part) => decodeURIComponent(part))
+}
+
+const getPathParts = (req) => {
+    const url = new URL(req.url || '/', 'https://local.invalid')
+    const rewrittenPath = req.query?.path || url.searchParams.get('path')
+    if (Array.isArray(rewrittenPath)) return toPathParts(rewrittenPath.join('/'))
+    if (rewrittenPath) return toPathParts(rewrittenPath)
+    return toPathParts(url.pathname.replace(/^\/api\/?/, ''))
 }
 
 const resolveRoute = (parts) => {
