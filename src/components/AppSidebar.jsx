@@ -16,6 +16,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { securityUtils } from '@/lib/security';
 import ProfileModal from '@/components/profile/ProfileModal';
 import { getDashboardNavItems } from '@/lib/navigation.jsx';
+import CreatorCredit from '@/components/CreatorCredit';
+import NotificationCenter from '@/components/notifications/NotificationCenter';
 
 export function AppSidebar() {
     const [collapsed, setCollapsed] = useState(false);
@@ -108,6 +110,9 @@ export function AppSidebar() {
                 </div>
 
                 <div className="border-t p-2">
+                    <div className={cn("mb-2 flex", collapsed ? "justify-center" : "justify-end")}>
+                        <NotificationCenter />
+                    </div>
                     <div
                         className={cn("flex items-center gap-3 rounded-md p-2 bg-muted/50 cursor-pointer hover:bg-muted transition-colors", collapsed && "justify-center")}
                         onClick={() => setIsProfileOpen(true)}
@@ -156,6 +161,7 @@ export function AppSidebar() {
                             )}
                         </AnimatePresence>
                     </Button>
+                    {!collapsed && <CreatorCredit compact className="mt-3 px-2" />}
                 </div>
             </motion.aside>
 

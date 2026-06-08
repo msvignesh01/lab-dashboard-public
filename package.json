@@ -10,7 +10,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "vitest run",
+    "test": "vitest run --exclude firebase/firestore.rules.test.js",
+    "test:rules": "firebase emulators:exec --only firestore \"vitest run firebase/firestore.rules.test.js\"",
     "preview": "vite preview",
     "vercel-build": "npm run lint && npm test && vite build",
     "migrate:hardening": "node scripts/migrate-production-hardening.js"
@@ -30,13 +31,14 @@
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.0",
+    "react-router-dom": "^7.17.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
@@ -44,6 +46,7 @@
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "firebase-tools": "^15.19.1",
     "globals": "^16.5.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.17",

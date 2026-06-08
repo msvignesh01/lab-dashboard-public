@@ -3,7 +3,7 @@ import { machineService } from '@/services/machineService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Edit, Trash, Microscope } from 'lucide-react';
+import { Plus, Edit, Trash, Microscope, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { securityUtils } from '@/lib/security';
@@ -30,8 +30,8 @@ const MachineManager = () => {
         image_url: '',
         is_active: true,
         requires_training: false,
-        specificationsText: '{}'
     });
+    const [specRows, setSpecRows] = useState([{ key: '', value: '' }]);
 
     const fetchMachines = useCallback(async () => {
         setLoading(true);
@@ -59,8 +59,8 @@ const MachineManager = () => {
             image_url: '',
             is_active: true,
             requires_training: false,
-            specificationsText: '{}'
         });
+        setSpecRows([{ key: '', value: '' }]);
         setEditingMachine(null);
     };
 
@@ -75,12 +75,23 @@ const MachineManager = () => {
                 image_url: machine.image_url || '',
                 is_active: machine.is_active,
                 requires_training: Boolean(machine.requires_training),
-                specificationsText: JSON.stringify(machine.specifications || {}, null, 2)
             });
+            const entries = Object.entries(machine.specifications || {});
+            setSpecRows(entries.length > 0 ? entries.map(([key, value]) => ({ key, value: String(value) })) : [{ key: '', value: '' }]);
         } else {
             resetForm();
         }
         setIsModalOpen(true);
+    };
+
+    const buildSpecifications = () => {
+        const specifications = {};
+        for (const row of specRows) {
+            const key = row.key.trim();
+            const value = String(row.value).trim();
+            if (key && value) specifications[key] = value;
+        }
+        return specifications;
     };
 
     const handleSubmit = async (e) => {
@@ -92,14 +103,7 @@ const MachineManager = () => {
         setSubmitting(true);
 
         const promise = (async () => {
-            let specifications = {};
-            try {
-                specifications = formData.specificationsText.trim()
-                    ? JSON.parse(formData.specificationsText)
-                    : {};
-            } catch {
-                throw new Error('Specifications must be valid JSON');
-            }
+            const specifications = buildSpecifications();
 
             const payload = {
                 name: formData.name,
@@ -176,7 +180,7 @@ const MachineManager = () => {
 
         toast.promise(promise, {
             loading: 'Deleting machine...',
-            success: 'Machine deleted successfully',
+            success: (msg) => msg,
             error: (err) => {
                 // Revert optimistic update on error
                 setMachines(originalMachines);
@@ -193,9 +197,9 @@ const MachineManager = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="sticky top-16 z-10 -mx-1 flex items-center justify-between gap-3 rounded-md bg-background/95 p-1 backdrop-blur md:static md:bg-transparent md:p-0">
                 <h2 className="text-2xl font-bold tracking-tight">Machine Management</h2>
-                <Button onClick={() => handleOpenModal()}>
+                <Button onClick={() => handleOpenModal()} className="shrink-0">
                     <Plus className="mr-2 h-4 w-4" /> Add Machine
                 </Button>
             </div>
@@ -297,7 +301,6 @@ const MachineManager = () => {
                                 />
                             </div>
                         </div>
-                        {/* I2: Added image_url field */}
                         <div className="space-y-2">
                             <label htmlFor="machine-image-url" className="text-sm font-medium">Image URL</label>
                             <Input
@@ -319,15 +322,40 @@ const MachineManager = () => {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label htmlFor="machine-specifications" className="text-sm font-medium">Specifications JSON</label>
-                            <textarea
-                                id="machine-specifications"
-                                className="flex min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                value={formData.specificationsText}
-                                onChange={e => setFormData({ ...formData, specificationsText: e.target.value })}
-                                placeholder='{"build_volume": "250 x 250 x 250 mm"}'
-                            />
-                            <p className="text-xs text-muted-foreground">Use simple key/value pairs for details shown in the machine profile.</p>
+                            <div className="flex items-center justify-between gap-3">
+                                <label className="text-sm font-medium">Specifications</label>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setSpecRows((rows) => [...rows, { key: '', value: '' }])}>
+                                    <Plus className="mr-2 h-4 w-4" /> Add detail
+                                </Button>
+                            </div>
+                            <div className="space-y-2">
+                                {specRows.map((row, index) => (
+                                    <div key={`${index}-${row.key}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                                        <Input
+                                            aria-label={`Specification ${index + 1} name`}
+                                            placeholder="Build volume"
+                                            value={row.key}
+                                            onChange={(e) => setSpecRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, key: e.target.value } : item))}
+                                        />
+                                        <Input
+                                            aria-label={`Specification ${index + 1} value`}
+                                            placeholder="250 x 250 x 250 mm"
+                                            value={row.value}
+                                            onChange={(e) => setSpecRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, value: e.target.value } : item))}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label={`Remove specification ${index + 1}`}
+                                            onClick={() => setSpecRows((rows) => rows.length > 1 ? rows.filter((_, itemIndex) => itemIndex !== index) : [{ key: '', value: '' }])}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-xs text-muted-foreground">Use simple labels and values students can understand before booking.</p>
                         </div>
                         <div className="grid gap-3">
                             <label className="flex items-center gap-3 text-sm font-medium" htmlFor="requires_training">
@@ -338,7 +366,7 @@ const MachineManager = () => {
                                     onChange={e => setFormData({ ...formData, requires_training: e.target.checked })}
                                     className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                 />
-                                Requires training before use
+                                Requires verified training approval before booking
                             </label>
                             <label className="flex items-center gap-3 text-sm font-medium" htmlFor="is_active">
                                 <input

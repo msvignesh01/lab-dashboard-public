@@ -8,6 +8,7 @@ Use this before and after each production deployment.
 npm ci
 npm run lint
 npm test
+npm run test:rules
 npm run build
 npm run vercel-build
 npm audit --omit=dev
@@ -15,15 +16,17 @@ npm audit --omit=dev
 
 Expected: all commands pass with no high or critical production vulnerabilities.
 
+Note: `npm run test:rules` requires Java because it starts the Firestore emulator.
+
 ## 2. Firebase Setup
 
-1. Confirm Firebase project is `lab-dashboard-2809`.
+1. Confirm Firebase project is `lab-dashboard-2809` for production or `aml-lab-dash-test-2809` for branch preview testing.
 2. Confirm Email/Password sign-in is enabled.
 3. Confirm Firestore Native mode database exists.
 4. Deploy Firestore rules and indexes:
 
 ```bash
-firebase deploy --only firestore:rules,firestore:indexes --project lab-dashboard-2809
+firebase deploy --only firestore:rules,firestore:indexes --project production
 ```
 
 Expected: rules and indexes deploy without weakening security.
@@ -70,6 +73,9 @@ Expected:
 3. Approve the booking as faculty/admin.
 4. Cancel an eligible future booking as the owning student.
 5. Try reviewing or cancelling a stale past booking.
+6. Try booking outside configured lab hours.
+7. Try booking during an active maintenance window.
+8. Try booking a training-required machine without training approval.
 
 Expected:
 
@@ -78,6 +84,7 @@ Expected:
 - Approval preserves slot locks.
 - Rejection/cancellation releases slot locks.
 - Past/stale mutations are rejected.
+- Lab hours, maintenance windows, and training approvals are enforced by the server.
 
 ## 6. Machine Management
 
@@ -91,8 +98,24 @@ Expected:
 - Students cannot call machine-management APIs.
 - Machines with historical bookings are deactivated rather than hard-deleted.
 - HTTPS image URL validation is enforced.
+- Mobile faculty/admin users can reach **Operations > Machines** and see **Add Machine**.
 
-## 7. UI Reliability
+## 7. Operations, Users, And Notifications
+
+1. Create and cancel a maintenance window.
+2. Approve and revoke a training record.
+3. As admin, suspend/reactivate a non-admin test user.
+4. As admin, change a test user's role.
+5. Confirm notifications appear after booking decisions and access changes.
+6. Confirm audit entries appear for booking, machine, maintenance, training, user, and config changes.
+
+Expected:
+
+- Students cannot manage users, maintenance, training, machines, or lab config.
+- Email notification failures do not break the core transaction.
+- No privileged email addresses are present in docs, source, or logs.
+
+## 8. UI Reliability
 
 1. Load Dashboard, Machines, Bookings, Admin, and Faculty Dashboard.
 2. Test empty, loading, error, unauthorized, and success states.
@@ -101,7 +124,7 @@ Expected:
 
 Expected: no crashes, no broken focus traps, and no action buttons that silently fail.
 
-## 8. Audit Sync
+## 9. Audit Sync
 
 1. Send `/api/internal/sync` with wrong secret.
 2. Send malformed JSON with correct secret.
@@ -113,13 +136,16 @@ Expected:
 - Malformed payload is rejected.
 - Valid rows are escaped and appended only when audit env vars are configured.
 
-## 9. Production Sign-Off
+## 10. Production Sign-Off
 
 Record:
 
 - Deployment URL:
 - Git commit:
 - Firebase project:
+- Firestore rules/indexes deployed:
+- Migration dry-run reviewed:
+- Migration apply approved:
 - Tester:
 - Date:
 - Known issues:

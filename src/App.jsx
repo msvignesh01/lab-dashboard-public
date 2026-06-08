@@ -1,11 +1,6 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
-import Dashboard from '@/pages/Dashboard'
-import Login from '@/pages/LoginPage'
-import Signup from '@/pages/SignupPage'
-import MachinesPage from '@/pages/MachinesPage'
-import BookingsPage from '@/pages/BookingsPage'
-import AdminDashboard from '@/pages/AdminDashboard'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
 import {
@@ -15,6 +10,13 @@ import {
   SuspendedGate,
   VerifyEmailGate,
 } from '@/components/auth/AccountGate'
+
+const Dashboard = lazy(() => import('@/pages/Dashboard'))
+const Login = lazy(() => import('@/pages/LoginPage'))
+const Signup = lazy(() => import('@/pages/SignupPage'))
+const MachinesPage = lazy(() => import('@/pages/MachinesPage'))
+const BookingsPage = lazy(() => import('@/pages/BookingsPage'))
+const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'))
 
 function ProtectedRoute({ children, role }) {
   const { user, profile, loading, profileLoading, profileError, accessState } = useAuth()
@@ -54,44 +56,46 @@ function App() {
     <ErrorBoundary>
       <AuthProvider>
         <Router>
-          <Routes>
-            <Route path="/login" element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            } />
-            <Route path="/signup" element={
-              <PublicRoute>
-                <Signup />
-              </PublicRoute>
-            } />
+          <Suspense fallback={<LoadingGate />}>
+            <Routes>
+              <Route path="/login" element={
+                <PublicRoute>
+                  <Login />
+                </PublicRoute>
+              } />
+              <Route path="/signup" element={
+                <PublicRoute>
+                  <Signup />
+                </PublicRoute>
+              } />
 
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
 
-            <Route path="/machines" element={
-              <ProtectedRoute>
-                <MachinesPage />
-              </ProtectedRoute>
-            } />
+              <Route path="/machines" element={
+                <ProtectedRoute>
+                  <MachinesPage />
+                </ProtectedRoute>
+              } />
 
-            <Route path="/bookings" element={
-              <ProtectedRoute>
-                <BookingsPage />
-              </ProtectedRoute>
-            } />
+              <Route path="/bookings" element={
+                <ProtectedRoute>
+                  <BookingsPage />
+                </ProtectedRoute>
+              } />
 
-            <Route path="/admin" element={
-              <ProtectedRoute role={['faculty', 'admin']}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } />
+              <Route path="/admin" element={
+                <ProtectedRoute role={['faculty', 'admin']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
           <Toaster
             position="top-right"
             offset={16}

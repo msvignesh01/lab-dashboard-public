@@ -9,4 +9,10 @@ export const profileService = {
         method: 'PATCH',
         forceRefreshToken: true,
     }),
+
+    rejectFacultyRequest: (userId, reason) => apiRequest(`/api/profile/${userId}/reject`, {
+        method: 'PATCH',
+        body: { reason },
+        forceRefreshToken: true,
+    }),
 }

@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { securityUtils } from '@/lib/security';
 import { DEPARTMENTS, EMAIL_DOMAINS } from '@/lib/constants';
+import CreatorCredit from '@/components/CreatorCredit';
 
 // Generate dynamic year options for passout
 const generatePassoutYears = () => {
@@ -366,6 +367,7 @@ const SignupPage = () => {
                         </p>
                     </CardFooter>
                 </Card>
+                <CreatorCredit />
             </motion.div>
         </div>
     );

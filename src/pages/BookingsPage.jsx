@@ -153,7 +153,6 @@ const BookingsPage = () => {
         }
     }, [user, fetchBookings]);
 
-    // I4: Use cancelBooking instead of updateBookingStatus for proper ownership check
     const handleCancel = async () => {
         if (!bookingToCancel) return;
         setCancelLoading(true);

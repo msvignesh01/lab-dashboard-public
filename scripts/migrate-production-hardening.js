@@ -4,6 +4,11 @@ import { getFirestore } from 'firebase-admin/firestore'
 
 const dryRun = !process.argv.includes('--apply')
 const nowIso = () => new Date().toISOString()
+const maskEmail = (email) => {
+    const value = normalizeEmail(email)
+    if (!value || !value.includes('@')) return null
+    return value.replace(/(.{2})[^@]*@/, '$1***@')
+}
 
 const normalizePrivateKey = (key) => String(key || '').replace(/\\n/g, '\n')
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase()
@@ -104,10 +109,42 @@ const main = async () => {
     for (const doc of profileSnapshot.docs) {
         const { profile, authUser, patch } = await buildProfilePatch(doc)
         if (!authUser) {
-            report.warnings.push({ type: 'missing_auth_user', uid: doc.id, email: profile.email || null })
+            report.warnings.push({ type: 'missing_auth_user', uid: doc.id, email: maskEmail(profile.email) })
         }
         if (Object.keys(patch).length > 0) {
-            report.updates.push({ uid: doc.id, email: profile.email || null, patch })
+            report.updates.push({ uid: doc.id, email: maskEmail(profile.email), patch })
+            if (!dryRun) await doc.ref.set(patch, { merge: true })
+        }
+    }
+
+    const labConfigRef = db.collection('lab_config').doc('default')
+    const labConfigSnap = await labConfigRef.get()
+    if (!labConfigSnap.exists) {
+        const defaultLabConfig = {
+            id: 'default',
+            timezone: 'Asia/Kolkata',
+            timezone_offset_minutes: 330,
+            open_time: '09:00:00',
+            close_time: '18:00:00',
+            active_weekdays: [1, 2, 3, 4, 5, 6],
+            max_advance_days: 30,
+            max_duration_hours: 8,
+            updated_at: nowIso(),
+            updated_by: 'migration',
+        }
+        report.updates.push({ type: 'lab_config_default', patch: defaultLabConfig })
+        if (!dryRun) await labConfigRef.set(defaultLabConfig)
+    }
+
+    const machines = await db.collection('machines').get()
+    for (const doc of machines.docs) {
+        const machine = { id: doc.id, ...doc.data() }
+        const patch = {}
+        if (!('requires_training' in machine)) patch.requires_training = false
+        if (!('specifications' in machine) || typeof machine.specifications !== 'object' || Array.isArray(machine.specifications)) patch.specifications = {}
+        if (Object.keys(patch).length > 0) {
+            patch.updated_at = nowIso()
+            report.updates.push({ type: 'machine_shape', machineId: doc.id, patch })
             if (!dryRun) await doc.ref.set(patch, { merge: true })
         }
     }
@@ -117,6 +154,12 @@ const main = async () => {
         const booking = { id: doc.id, ...doc.data() }
         if (!booking.machine_id || !booking.student_id || !booking.booking_date || !booking.start_time || !booking.end_time) {
             report.warnings.push({ type: 'invalid_booking_shape', bookingId: doc.id })
+        }
+        if (['pending', 'approved'].includes(booking.status)) {
+            const slots = await db.collection('booking_slots').where('booking_id', '==', doc.id).limit(1).get()
+            if (slots.empty) {
+                report.warnings.push({ type: 'missing_active_booking_slots', bookingId: doc.id })
+            }
         }
     }
 

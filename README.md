@@ -5,10 +5,10 @@ A production-oriented university lab equipment booking system for the Additive M
 ## Current Production Architecture
 
 - React 19 + Vite frontend.
-- Vercel hosts the web app and serverless `/api/*` routes.
+- Vercel hosts the web app and a single catch-all serverless `/api/*` gateway.
 - Firebase Authentication is the identity provider.
 - Cloud Firestore stores profiles, machines, bookings, slot locks, and audit records.
-- Firebase Admin SDK runs only in trusted server-side API routes.
+- Firebase Admin SDK runs only in trusted server-side handlers imported by the API gateway.
 - Firestore client SDK is used for safe reads and realtime subscriptions.
 
 Do not deploy this app as Firebase Hosting-only unless the `/api/*` backend is also moved to Firebase Functions or another backend. The current app expects Vercel-compatible serverless API routes.
@@ -28,7 +28,8 @@ Use [ACCESS_MANAGEMENT.md](./ACCESS_MANAGEMENT.md) for user-facing/operator inst
 ## Project Structure
 
 ```text
-api/                 Vercel serverless API routes
+api/                 Vercel API gateway entrypoint
+server/              Private API handlers, policies, validation, and Firebase Admin code
 firebase/            Firestore rules and indexes
 scripts/             Firebase Admin migration utilities
 src/                 React application source
@@ -48,7 +49,7 @@ Firebase:
 Vercel:
 
 - Static frontend hosting.
-- Serverless Functions for `/api/bookings`, `/api/machines`, `/api/profile`, and `/api/internal/sync`.
+- A serverless `/api/*` gateway for bookings, machines, profiles, users, notifications, audit, training, maintenance, and internal sync.
 
 Not currently required:
 
@@ -75,7 +76,7 @@ VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
 FIREBASE_ADMIN_PROJECT_ID=your-project-id
 FIREBASE_ADMIN_CLIENT_EMAIL=your-service-account@your-project-id.iam.gserviceaccount.com
 FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-BOOTSTRAP_ADMIN_EMAILS=first.admin@christuniversity.in
+BOOTSTRAP_ADMIN_EMAILS=<bootstrap-admin-email-1>,<bootstrap-admin-email-2>
 ```
 
 Optional Google Sheets audit sync:
@@ -85,6 +86,14 @@ INTERNAL_WEBHOOK_SECRET=your-shared-secret
 GCP_CLIENT_EMAIL=your-service-account@your-project-id.iam.gserviceaccount.com
 GCP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 AUDIT_SHEET_ID=your-google-sheet-id
+```
+
+Optional transactional email for booking, access, training, and maintenance notifications:
+
+```env
+EMAIL_PROVIDER_API_KEY=your-email-provider-api-key
+NOTIFICATION_FROM_EMAIL=AML Lab <no-reply@your-domain.example>
+EMAIL_PROVIDER_ENDPOINT=https://api.resend.com/emails
 ```
 
 Never commit `.env`, service account JSON, or private keys.
@@ -103,21 +112,43 @@ Open <http://localhost:5173>.
 ```bash
 npm run lint
 npm test
+npm run test:rules
 npm run build
 npm run vercel-build
 npm audit --omit=dev
 ```
 
+`npm run test:rules` requires Java because it starts the Firestore emulator. Run it before production rule deployments and in CI environments that have Java available.
+
+## Production Readiness
+
+Code passing locally is not the same as production sign-off. A release is production-ready only after:
+
+- The branch preview deploy builds successfully on Vercel.
+- Preview env vars point to the intended Firebase project.
+- Firestore rules and indexes are deployed to the intended Firebase project.
+- `npm run test:rules` passes in an environment with Java.
+- The hardening migration dry-run is reviewed; apply mode is run only after approval.
+- Bootstrap admin emails are configured only in Vercel/Firebase environment, never in source or docs.
+- Manual student, faculty, and admin flows pass the production QA checklist.
+
+See [RELEASE_READINESS.md](./RELEASE_READINESS.md) for the rollout sequence.
+
 ## Firebase Setup
 
 This repository is configured for Firebase project `lab-dashboard-2809`.
+
+Project aliases:
+
+- `production`: `lab-dashboard-2809`
+- `preview`: `aml-lab-dash-test-2809`
 
 1. Enable Email/Password sign-in in Firebase Authentication.
 2. Create the default Firestore database in production mode.
 3. Deploy Firestore rules and indexes:
 
 ```bash
-firebase deploy --only firestore:rules,firestore:indexes --project lab-dashboard-2809
+firebase deploy --only firestore:rules,firestore:indexes --project production
 ```
 
 4. Run the hardening migration dry-run before applying data normalization:
@@ -131,6 +162,8 @@ npm run migrate:hardening
 ```bash
 node scripts/migrate-production-hardening.js --apply
 ```
+
+For branch/manual testing, use the isolated `preview` Firebase project instead of pointing previews at production data. Configure the same Auth provider, Firestore rules, indexes, and Vercel preview env vars for that test project.
 
 ## Vercel Deployment
 
@@ -155,6 +188,10 @@ vercel --prod
 - `machines/{machineId}`: lab equipment catalog and availability.
 - `bookings/{bookingId}`: student booking requests and review state.
 - `booking_slots/{machineId}_{date}_{HHmm}`: server-owned conflict locks.
+- `lab_config/default`: lab hours, active weekdays, and booking limits.
+- `maintenance_windows/{windowId}`: machine or whole-lab blocked time.
+- `training_records/{studentId_machineId}`: machine training eligibility.
+- `notifications/{notificationId}`: user-facing in-app/email notification state.
 - `audit_log/{logId}`: restricted audit records.
 
 ## Security Model
@@ -165,6 +202,8 @@ vercel --prod
 - Critical mutations run through server-side Firebase Admin SDK routes.
 - Bootstrap admins are controlled by `BOOTSTRAP_ADMIN_EMAILS`.
 - Audit sync escapes spreadsheet formula prefixes and writes with RAW input mode.
+- Training-required machines are blocked until a faculty/admin training record approves the student.
+- Lab hours and maintenance windows are enforced by trusted booking APIs.
 
 ## CI
 

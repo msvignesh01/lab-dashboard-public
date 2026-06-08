@@ -25,6 +25,10 @@ Firebase Storage, Firebase Functions, Firebase Hosting, and Firebase App Hosting
 - `machines/{machineId}`: lab machine catalog.
 - `bookings/{bookingId}`: booking requests and review state.
 - `booking_slots/{machineId}_{date}_{HHmm}`: one document per booked minute, used by server transactions to prevent overlaps.
+- `lab_config/default`: lab hours, active weekdays, and booking limits.
+- `maintenance_windows/{windowId}`: blocked machine or whole-lab time.
+- `training_records/{studentId_machineId}`: training eligibility for machines that require approval.
+- `notifications/{notificationId}`: in-app and email notification state.
 - `audit_log/{logId}`: restricted audit records.
 
 ## Deploy Rules And Indexes

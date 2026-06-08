@@ -182,6 +182,32 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /lab_config/{configId} {
+      allow read: if isActiveUser();
+      allow create, update, delete: if false;
+    }
+
+    match /maintenance_windows/{windowId} {
+      allow read: if isActiveUser();
+      allow create, update, delete: if false;
+    }
+
+    match /training_records/{recordId} {
+      allow read: if isActiveUser()
+        && (resource.data.student_id == request.auth.uid || isFacultyOrAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isActiveUser()
+        && resource.data.user_id == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /rate_limits/{limitId} {
+      allow read, write: if false;
+    }
+
     match /audit_log/{logId} {
       allow read: if isFacultyOrAdmin();
       allow write: if false;
