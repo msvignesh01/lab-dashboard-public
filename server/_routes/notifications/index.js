@@ -12,14 +12,28 @@ export default handleApi(async (req, res) => {
     })
 
     if (req.method === 'GET') {
-        const snapshot = await adminDb
-            .collection('notifications')
-            .where('user_id', '==', context.uid)
-            .orderBy('created_at', 'desc')
-            .limit(50)
-            .get()
-
-        return sendOk(res, snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
+        try {
+            const snapshot = await adminDb
+                .collection('notifications')
+                .where('user_id', '==', context.uid)
+                .orderBy('created_at', 'desc')
+                .limit(50)
+                .get()
+            return sendOk(res, snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
+        } catch (err) {
+            // Fallback if the (user_id, created_at) composite index is not deployed yet:
+            // fetch the user's notifications and sort newest-first in memory so the
+            // notification center still works instead of returning a 500.
+            if (err?.code === 9 || err?.code === 'failed-precondition') {
+                const snap = await adminDb.collection('notifications').where('user_id', '==', context.uid).get()
+                const items = snap.docs
+                    .map((doc) => ({ id: doc.id, ...doc.data() }))
+                    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+                    .slice(0, 50)
+                return sendOk(res, items)
+            }
+            throw err
+        }
     }
 
     const body = await parseJsonBody(req)

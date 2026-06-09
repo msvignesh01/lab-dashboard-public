@@ -58,9 +58,10 @@ const MachinesPage = () => {
         fetchMachines(); // eslint-disable-line react-hooks/set-state-in-effect
     }, [fetchMachines]);
 
+    const normalizedSearch = search.trim().toLowerCase();
     const filteredMachines = machines.filter(m =>
-        m.name.toLowerCase().includes(search.toLowerCase()) ||
-        m.description?.toLowerCase().includes(search.toLowerCase())
+        (m.name || '').toLowerCase().includes(normalizedSearch) ||
+        (m.description || '').toLowerCase().includes(normalizedSearch)
     );
 
     const handleBook = (machine) => {

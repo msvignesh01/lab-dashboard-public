@@ -7,9 +7,8 @@ import StateMessage from '@/components/StateMessage'
 import { maintenanceService } from '@/services/maintenanceService'
 import { machineService } from '@/services/machineService'
 
-const today = new Date().toISOString().slice(0, 10)
-
 const MaintenanceManager = () => {
+    const today = new Date().toISOString().slice(0, 10)
     const [windows, setWindows] = useState([])
     const [machines, setMachines] = useState([])
     const [loading, setLoading] = useState(true)

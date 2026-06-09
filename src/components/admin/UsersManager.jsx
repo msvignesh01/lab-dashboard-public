@@ -4,6 +4,7 @@ import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import StateMessage from '@/components/StateMessage'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import { userService } from '@/services/userService'
 import { ROLES } from '@/lib/constants'
 
@@ -12,6 +13,7 @@ const UsersManager = () => {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [busyId, setBusyId] = useState(null)
+    const [pendingAction, setPendingAction] = useState(null)
 
     const fetchUsers = useCallback(async () => {
         setLoading(true)
@@ -54,6 +56,34 @@ const UsersManager = () => {
         fetchUsers()
     }
 
+    const runPendingAction = async () => {
+        if (!pendingAction) return
+        const { kind, user, value } = pendingAction
+        if (kind === 'role') {
+            await changeRole(user, value)
+        } else {
+            await changeStatus(user, value)
+        }
+        setPendingAction(null)
+    }
+
+    const confirmCopy = () => {
+        if (!pendingAction) return { title: '', description: '' }
+        const { kind, user, value } = pendingAction
+        const name = user.full_name || user.email || 'this user'
+        if (kind === 'role') {
+            return {
+                title: `Change role to "${value}"?`,
+                description: value === 'admin'
+                    ? `${name} will become an admin with full control over users, machines, maintenance, training, and lab settings.`
+                    : `${name}'s role will be changed to ${value}.`,
+            }
+        }
+        return value === 'suspended'
+            ? { title: 'Suspend user?', description: `${name} will be signed out and blocked from the lab dashboard until reactivated.` }
+            : { title: 'Reactivate user?', description: `${name} will regain access to the lab dashboard.` }
+    }
+
     if (loading) return <div className="h-40 animate-pulse rounded-md bg-muted" />
     if (error) return <StateMessage type="error" title="Unable to load users" description={error.message} actionLabel="Try again" onAction={fetchUsers} />
 
@@ -83,26 +113,37 @@ const UsersManager = () => {
                                     <Badge variant="outline">{user.role}</Badge>
                                 </div>
                                 <p className="truncate text-sm text-muted-foreground">{user.email}</p>
-                                <p className="text-xs text-muted-foreground">UID: {user.id}</p>
+                                <p className="break-all text-xs text-muted-foreground">UID: {user.id}</p>
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 {ROLES.map((role) => (
-                                    <Button key={role} size="sm" variant={user.role === role ? 'default' : 'outline'} disabled={busyId === user.id || user.role === role} onClick={() => changeRole(user, role)}>
+                                    <Button key={role} size="sm" variant={user.role === role ? 'default' : 'outline'} disabled={busyId === user.id || user.role === role} onClick={() => setPendingAction({ kind: 'role', user, value: role })}>
                                         {role}
                                     </Button>
                                 ))}
                             </div>
                             <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
                                 {user.status === 'suspended' ? (
-                                    <Button size="sm" onClick={() => changeStatus(user, 'active')} disabled={busyId === user.id}>Reactivate</Button>
+                                    <Button size="sm" onClick={() => setPendingAction({ kind: 'status', user, value: 'active' })} disabled={busyId === user.id}>Reactivate</Button>
                                 ) : (
-                                    <Button size="sm" variant="destructive" onClick={() => changeStatus(user, 'suspended')} disabled={busyId === user.id}>Suspend</Button>
+                                    <Button size="sm" variant="destructive" onClick={() => setPendingAction({ kind: 'status', user, value: 'suspended' })} disabled={busyId === user.id}>Suspend</Button>
                                 )}
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+
+            <ConfirmDialog
+                open={Boolean(pendingAction)}
+                title={confirmCopy().title}
+                description={confirmCopy().description}
+                confirmLabel="Confirm"
+                destructive={pendingAction?.kind === 'status' && pendingAction?.value === 'suspended'}
+                loading={Boolean(pendingAction) && busyId === pendingAction?.user?.id}
+                onConfirm={runPendingAction}
+                onOpenChange={(open) => { if (!open) setPendingAction(null) }}
+            />
         </div>
     )
 }

@@ -39,3 +39,4 @@ build/
 
 # Local agent/tooling config
 config.toml
+.claude/

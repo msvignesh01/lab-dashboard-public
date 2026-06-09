@@ -15,23 +15,32 @@ export default handleApi(async (req, res) => {
     const role = typeof req.query?.role === 'string' ? req.query.role : ''
 
     const snapshot = await adminDb.collection('profiles').limit(200).get()
-    const profiles = await Promise.all(snapshot.docs.map(async (doc) => {
-        const profile = { id: doc.id, ...doc.data() }
+    const profileDocs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+
+    // Batch Firebase Auth lookups (max 100 identifiers per getUsers call) instead of
+    // one getUser request per profile. The per-profile approach is slow and can exceed
+    // the serverless function timeout once the user base grows.
+    const authByUid = new Map()
+    for (let i = 0; i < profileDocs.length; i += 100) {
+        const chunk = profileDocs.slice(i, i + 100)
         try {
-            const user = await adminAuth.getUser(doc.id)
-            return {
-                ...profile,
-                auth_disabled: user.disabled === true,
-                auth_email_verified: user.emailVerified === true,
+            const result = await adminAuth.getUsers(chunk.map((profile) => ({ uid: profile.id })))
+            for (const user of result.users) {
+                authByUid.set(user.uid, user)
             }
         } catch {
-            return {
-                ...profile,
-                auth_disabled: null,
-                auth_email_verified: null,
-            }
+            // Leave this chunk's auth metadata unresolved; reported as null below.
         }
-    }))
+    }
+
+    const profiles = profileDocs.map((profile) => {
+        const user = authByUid.get(profile.id)
+        return {
+            ...profile,
+            auth_disabled: user ? user.disabled === true : null,
+            auth_email_verified: user ? user.emailVerified === true : null,
+        }
+    })
 
     const filtered = profiles
         .filter((profile) => !status || profile.status === status)
