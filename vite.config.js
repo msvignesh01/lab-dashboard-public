@@ -46,14 +46,5 @@ export default defineConfig({
       'X-XSS-Protection': '1; mode=block',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
     },
-    // Local development only: forward /api/* to the local dev-api server
-    // (scripts/dev-api.mjs). This has no effect on the production build, where
-    // Vercel routes /api/* to the serverless functions via vercel.json.
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:3001',
-        changeOrigin: true,
-      },
-    },
   },
 })

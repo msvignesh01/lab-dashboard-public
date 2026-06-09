@@ -72,8 +72,8 @@ Script method (fastest, recommended over manual Console edits):
 3. Apply: `npm run grant:admin -- new.admin@christuniversity.in --apply`
 
 This sets the profile to active admin **and marks their Auth email verified**, so an admin
-who never received the verification email can still be provisioned. Run
-`npm run inspect:users -- new.admin@christuniversity.in` first to confirm current state.
+who never received the verification email can still be provisioned. Run the command without
+`--apply` first to preview the change.
 
 Emergency/manual method:
 

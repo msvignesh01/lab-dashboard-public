@@ -18,11 +18,7 @@
     "grant:admin": "node --env-file=.env.local scripts/grant-admin.js",
     "deploy:rules": "firebase deploy --only firestore:rules",
     "deploy:indexes": "firebase deploy --only firestore:indexes",
-    "deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes",
-    "dev:api": "node --env-file=.env.local scripts/dev-api.mjs",
-    "seed:e2e": "node --env-file=.env.local scripts/seed-test-users.mjs",
-    "inspect:users": "node --env-file=.env.local scripts/inspect-users.mjs",
-    "e2e:smoke": "node --env-file=.env.local scripts/e2e-smoke.mjs"
+    "deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",

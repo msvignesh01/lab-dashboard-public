@@ -131,30 +131,12 @@ These read `FIREBASE_ADMIN_*` (or `GCP_*`) credentials from `.env.local`.
 | Command | Purpose |
 | --- | --- |
 | `npm run grant:admin -- <email> --apply` | Grant a user the admin role + active status in Firestore and mark their Auth email verified (admins must be verified to sign in). Omit `--apply` for a dry run. |
-| `npm run inspect:users -- <email...>` | Print Auth + Firestore profile state for emails — diagnoses "can't verify" / "no admin access" reports. |
 | `npm run migrate:hardening` | Dry-run the data-normalization migration (`node scripts/migrate-production-hardening.js --apply` to write). |
 | `npm run deploy:firestore` | Deploy Firestore rules **and** indexes (`deploy:rules` / `deploy:indexes` to do one). |
 
 > Deploy indexes whenever `firebase/firestore.indexes.json` changes. A missing composite
 > index surfaces as a 500 on the affected query; the notification list has an in-memory
 > fallback, but every declared index should still be deployed.
-
-## End-to-End Testing (real project)
-
-A local harness runs the full stack against a real Firebase project — no passwords required.
-
-```bash
-npm run seed:e2e               # create labeled student/faculty/admin test accounts (pre-verified)
-npm run dev:api                # start the local /api server (Vite proxies /api here)
-npm run dev                    # start the frontend (separate terminal)
-npm run e2e:smoke              # exercise every endpoint + business rule, then auto-clean its data
-npm run seed:e2e -- --delete   # remove the seeded test accounts when finished
-```
-
-`e2e:smoke` mints ID tokens through the Admin SDK (no passwords), then asserts the full
-authorization matrix, machine CRUD, the training gate, booking lifecycle + overlap locks,
-the maintenance gate, notifications, faculty approvals, user management, and audit logging —
-deleting all data it creates afterward. It targets `dev:api` on `http://127.0.0.1:3001`.
 
 ## Production Readiness
 
