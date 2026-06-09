@@ -1,5 +1,6 @@
 import { adminAuth, adminDb, FieldValue } from './firebaseAdmin.js'
 import { ApiError, getBearerToken } from './http.js'
+import { writeAuditLog } from './audit.js'
 
 const ACTIVE_STATUS = 'active'
 const ADMIN_ROLE = 'admin'
@@ -44,6 +45,13 @@ const normalizeBootstrapAdmin = async (decodedToken, profileRef, existingProfile
 
     if (!existingProfile) {
         await profileRef.set(bootstrapProfile)
+        await writeAuditLog({
+            actor: { uid: decodedToken.uid, profile: { role: ADMIN_ROLE } },
+            action: 'admin.bootstrap_provisioned',
+            entity_type: 'profile',
+            entity_id: decodedToken.uid,
+            metadata: { email: bootstrapProfile.email, created: true },
+        }).catch(() => {})
         return bootstrapProfile
     }
 
@@ -64,6 +72,13 @@ const normalizeBootstrapAdmin = async (decodedToken, profileRef, existingProfile
     }
 
     await profileRef.set(update, { merge: true })
+    await writeAuditLog({
+        actor: { uid: decodedToken.uid, profile: { role: ADMIN_ROLE } },
+        action: 'admin.bootstrap_provisioned',
+        entity_type: 'profile',
+        entity_id: decodedToken.uid,
+        metadata: { email: bootstrapProfile.email, created: false },
+    }).catch(() => {})
     return { ...existingProfile, ...update }
 }
 

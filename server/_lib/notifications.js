@@ -96,11 +96,27 @@ export const createNotification = async ({ profile, type, title, message, entity
     }
 }
 
+const fetchActiveReviewers = async () => {
+    // Preferred: a single indexed query that only returns active faculty/admin reviewers.
+    try {
+        const snapshot = await adminDb
+            .collection('profiles')
+            .where('status', '==', 'active')
+            .where('role', 'in', ['faculty', 'admin'])
+            .get()
+        return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    } catch {
+        // Fallback if the (status, role) composite index has not been deployed yet:
+        // scan active profiles and filter in memory so notifications still send.
+        const snapshot = await adminDb.collection('profiles').where('status', '==', 'active').get()
+        return snapshot.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }))
+            .filter((profile) => ['faculty', 'admin'].includes(profile.role))
+    }
+}
+
 export const notifyFacultyAndAdmins = async ({ type, title, message, entity }) => {
-    const snapshot = await adminDb.collection('profiles').where('status', '==', 'active').get()
-    const recipients = snapshot.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
-        .filter((profile) => ['faculty', 'admin'].includes(profile.role))
+    const recipients = await fetchActiveReviewers()
 
     await Promise.all(recipients.map((profile) => createNotification({
         profile,

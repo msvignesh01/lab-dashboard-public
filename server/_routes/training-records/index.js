@@ -9,6 +9,17 @@ import { createNotification } from '../../_lib/notifications.js'
 
 const nowIso = () => new Date().toISOString()
 
+const resolveStudentId = async (body) => {
+    const rawId = String(body?.student_id || '').trim()
+    if (isValidFirestoreId(rawId)) return rawId
+
+    const email = String(body?.student_email || '').trim().toLowerCase()
+    if (!email) return ''
+
+    const snapshot = await adminDb.collection('profiles').where('email', '==', email).limit(1).get()
+    return snapshot.empty ? '' : snapshot.docs[0].id
+}
+
 const sanitizeTrainingPayload = (body, actorUid) => {
     const studentId = String(body.student_id || '').trim()
     const machineId = String(body.machine_id || '').trim()
@@ -71,7 +82,11 @@ export default handleApi(async (req, res) => {
 
     await assertRateLimit({ uid: context.uid, action: 'training_update', limit: 40, windowMs: 60_000 })
     const body = await parseJsonBody(req)
-    const record = sanitizeTrainingPayload(body, context.uid)
+    const studentId = await resolveStudentId(body)
+    if (!isValidFirestoreId(studentId)) {
+        throw new ApiError(400, 'No registered student matches that email or UID.', 'student_not_found')
+    }
+    const record = sanitizeTrainingPayload({ ...body, student_id: studentId }, context.uid)
     const ref = adminDb.collection('training_records').doc(record.id)
     const existing = await ref.get()
     const nextRecord = existing.exists

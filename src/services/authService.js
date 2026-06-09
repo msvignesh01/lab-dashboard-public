@@ -11,6 +11,7 @@ import {
   deleteDoc,
   doc,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore'
 import { firebaseAuth, firestore } from '@/lib/firebase'
 import { securityUtils } from '@/lib/security'
@@ -256,6 +257,48 @@ export const authService = {
     await currentUser.reload()
     await currentUser.getIdToken(true)
     return toAuthUser(firebaseAuth.currentUser)
+  },
+
+  /**
+   * Update the signed-in user's own editable profile fields.
+   * Only fields the Firestore security rules permit are sent; identity/role/status
+   * fields are never included so the rules' identity check always passes.
+   */
+  updateProfile: async (updates) => {
+    try {
+      const currentUser = firebaseAuth.currentUser
+      if (!currentUser) {
+        return { data: null, error: { message: 'You need to sign in first.', code: 'auth_required' } }
+      }
+
+      const lengths = {
+        full_name: 100,
+        department: 100,
+        specialization: 100,
+        phone: 40,
+        register_number: 40,
+        year_of_passout: 10,
+      }
+
+      const patch = {}
+      for (const key of Object.keys(lengths)) {
+        if (updates?.[key] !== undefined) {
+          patch[key] = typeof updates[key] === 'string' ? updates[key].trim().substring(0, lengths[key]) : ''
+        }
+      }
+
+      if (Object.keys(patch).length === 0) {
+        return { data: null, error: { message: 'No changes to save.' } }
+      }
+
+      patch.updated_at = nowIso()
+      await updateDoc(doc(firestore, 'profiles', currentUser.uid), patch)
+      securityUtils.secureLog('info', 'Profile updated', { fields: Object.keys(patch) })
+      return { data: patch, error: null }
+    } catch (err) {
+      securityUtils.secureLog('error', 'Profile update failed', err.message)
+      return { data: null, error: toServiceError(err) }
+    }
   },
 
   /**

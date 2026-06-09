@@ -14,7 +14,7 @@ const TrainingManager = () => {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [saving, setSaving] = useState(false)
-    const [form, setForm] = useState({ student_id: '', machine_id: '', status: 'active', notes: '' })
+    const [form, setForm] = useState({ student: '', machine_id: '', status: 'active', notes: '' })
 
     const fetchData = useCallback(async () => {
         setLoading(true)
@@ -39,19 +39,26 @@ const TrainingManager = () => {
 
     const submit = async (e) => {
         e.preventDefault()
-        if (!form.student_id || !form.machine_id) {
-            toast.error('Student UID and machine are required')
+        const identifier = form.student.trim()
+        if (!identifier || !form.machine_id) {
+            toast.error('Student email (or UID) and machine are required')
             return
         }
         setSaving(true)
-        const { error: saveError } = await trainingService.saveRecord(form)
+        const payload = {
+            machine_id: form.machine_id,
+            status: form.status,
+            notes: form.notes,
+            ...(identifier.includes('@') ? { student_email: identifier } : { student_id: identifier }),
+        }
+        const { error: saveError } = await trainingService.saveRecord(payload)
         setSaving(false)
         if (saveError) {
             toast.error(saveError.message || 'Unable to save training record')
             return
         }
         toast.success(form.status === 'active' ? 'Training approved' : 'Training revoked')
-        setForm({ student_id: '', machine_id: '', status: 'active', notes: '' })
+        setForm({ student: '', machine_id: '', status: 'active', notes: '' })
         fetchData()
     }
 
@@ -63,7 +70,7 @@ const TrainingManager = () => {
                     <p className="text-sm text-muted-foreground">Approvals are enforced before students can book training-required machines.</p>
                 </div>
                 <div className="grid gap-3 lg:grid-cols-4">
-                    <Input value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value })} placeholder="Student UID" aria-label="Student UID" required />
+                    <Input value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} placeholder="Student email or UID" aria-label="Student email or UID" required />
                     <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.machine_id} onChange={(e) => setForm({ ...form, machine_id: e.target.value })} required aria-label="Machine">
                         <option value="">Select machine</option>
                         {machines.map((machine) => <option key={machine.id} value={machine.id}>{machine.name}</option>)}
@@ -88,7 +95,7 @@ const TrainingManager = () => {
                     {records.map((record) => (
                         <div key={record.id} className="grid gap-2 rounded-md border bg-card p-4 md:grid-cols-[1fr_1fr_auto] md:items-center">
                             <div>
-                                <p className="font-medium">{record.student_id}</p>
+                                <p className="break-all font-medium">{record.student_id}</p>
                                 <p className="text-sm text-muted-foreground">Student UID</p>
                             </div>
                             <div>

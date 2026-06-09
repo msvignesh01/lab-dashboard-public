@@ -10,7 +10,7 @@ This guide is for lab operators who need to onboard students, faculty reviewers,
 | Faculty | `@christuniversity.in` | Self-signup, email verification, then admin approval | Review bookings and manage lab machines, maintenance windows, and training approvals |
 | Admin | `@christuniversity.in` | Bootstrap allowlist or explicit admin promotion | Approve faculty access, manage users, configure lab rules, and perform all faculty operations |
 
-All users must verify their Firebase Auth email before protected app access works.
+All users must verify their Firebase Auth email before protected app access works — this gate applies even to admins. If a verification email cannot be delivered (e.g. university mail filtering), an operator can mark the account verified in the Firebase Console, or use `npm run grant:admin` (which force-verifies) when provisioning an admin.
 
 ## Add A Student
 
@@ -65,6 +65,16 @@ Preferred method:
 4. Have them sign in once after verification.
 5. Confirm they can access **Admin Console**.
 
+Script method (fastest, recommended over manual Console edits):
+
+1. Ensure `FIREBASE_ADMIN_*` credentials are available in `.env.local`.
+2. Dry run (no writes): `npm run grant:admin -- new.admin@christuniversity.in`
+3. Apply: `npm run grant:admin -- new.admin@christuniversity.in --apply`
+
+This sets the profile to active admin **and marks their Auth email verified**, so an admin
+who never received the verification email can still be provisioned. Run
+`npm run inspect:users -- new.admin@christuniversity.in` first to confirm current state.
+
 Emergency/manual method:
 
 1. In Firebase Console, find the verified user in Authentication and copy their UID.
@@ -82,9 +92,11 @@ Use the manual method sparingly and record the change in lab operations notes.
 
 ## Suspend Or Remove Access
 
-The current UI does not yet include a full user suspension screen.
+Admins can change roles and suspend/reactivate users from **Admin Console → Users** (role
+and status changes require a confirmation step, and suspending also disables the user's
+Firebase Auth account). Users can edit their own profile details from the profile dialog.
 
-For urgent access removal:
+For urgent access removal outside the app:
 
 1. Disable the user in Firebase Authentication.
 2. Set `profiles/{uid}.status` to `suspended` in Firestore.

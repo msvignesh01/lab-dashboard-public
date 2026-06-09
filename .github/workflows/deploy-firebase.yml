@@ -1,0 +1,43 @@
+name: Deploy Firestore rules & indexes
+
+# Keeps deployed Firestore security rules and indexes in sync with the repo.
+# Without this, rules/indexes only update when someone remembers to run the CLI by
+# hand — a stale ruleset or a missing composite index silently breaks production.
+#
+# Requires two repository secrets:
+#   FIREBASE_TOKEN       -> from `npx firebase login:ci`
+#   FIREBASE_PROJECT_ID  -> e.g. lab-dashboard-2809
+# If FIREBASE_TOKEN is absent the job no-ops instead of failing, so forks/PRs are safe.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'firebase/**'
+      - 'firebase.json'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Deploy Firestore rules and indexes
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ] || [ -z "$FIREBASE_PROJECT_ID" ]; then
+            echo "FIREBASE_TOKEN / FIREBASE_PROJECT_ID not configured — skipping Firestore deploy."
+            exit 0
+          fi
+          npx firebase deploy \
+            --only firestore:rules,firestore:indexes \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --non-interactive

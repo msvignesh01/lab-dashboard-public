@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { reportClientError } from '@/lib/reportError';
 
 /**
  * ErrorBoundary component to catch JavaScript errors anywhere in the component tree
@@ -18,14 +19,17 @@ class ErrorBoundary extends React.Component {
     }
 
     componentDidCatch(error, errorInfo) {
-        // Security: Only log errors in development to prevent stack trace leakage
+        // Security: Only log full errors in development to prevent stack trace leakage
         if (import.meta.env.DEV) {
             console.error('ErrorBoundary caught an error:', error, errorInfo);
         }
         this.setState({ errorInfo });
 
-        // In production, you might want to send this to an error tracking service
-        // e.g., Sentry, LogRocket, etc.
+        // Forward to the configured error-reporting endpoint (no-op if unset).
+        reportClientError(error, {
+            type: 'react_error_boundary',
+            componentStack: errorInfo?.componentStack,
+        });
     }
 
     handleReload = () => {
