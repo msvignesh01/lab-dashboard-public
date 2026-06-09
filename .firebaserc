@@ -1,7 +1,5 @@
 {
   "projects": {
-    "default": "lab-dashboard-2809",
-    "production": "lab-dashboard-2809",
-    "preview": "aml-lab-dash-test-2809"
+    "default": "lab-dashboard-2809"
   }
 }

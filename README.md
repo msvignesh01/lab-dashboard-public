@@ -172,19 +172,14 @@ See [RELEASE_READINESS.md](./RELEASE_READINESS.md) for the rollout sequence.
 
 ## Firebase Setup
 
-This repository is configured for Firebase project `lab-dashboard-2809`.
-
-Project aliases:
-
-- `production`: `lab-dashboard-2809`
-- `preview`: `aml-lab-dash-test-2809`
+This repository targets a single Firebase project, `lab-dashboard-2809` (the `default` alias in `.firebaserc`).
 
 1. Enable Email/Password sign-in in Firebase Authentication.
 2. Create the default Firestore database in production mode.
-3. Deploy Firestore rules and indexes:
+3. Deploy Firestore rules and indexes (whenever anything under `firebase/` changes):
 
 ```bash
-firebase deploy --only firestore:rules,firestore:indexes --project production
+npm run deploy:firestore
 ```
 
 4. Run the hardening migration dry-run before applying data normalization:
@@ -199,7 +194,7 @@ npm run migrate:hardening
 node scripts/migrate-production-hardening.js --apply
 ```
 
-For branch/manual testing, use the isolated `preview` Firebase project instead of pointing previews at production data. Configure the same Auth provider, Firestore rules, indexes, and Vercel preview env vars for that test project.
+This is a single-app, single-environment setup (one Firebase project, one Vercel app, one `main` branch). Validate changes with the local end-to-end harness (see "End-to-End Testing"), which seeds clearly-labeled test accounts against this project and removes its own data afterward.
 
 ## Vercel Deployment
 
