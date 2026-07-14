@@ -1,11 +1,18 @@
-import { BOOKING_LIMITS } from '../../src/lib/constants.js'
-import { parseTimeToMinute } from '../../src/lib/bookingValidation.js'
+import { BOOKING_LIMITS } from '../../shared/constants.js'
+import { parseTimeToMinute } from '../../shared/bookingValidation.js'
 import { isValidFirestoreId } from './ids.js'
 import { ApiError } from './http.js'
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const LAB_TIMEZONE_OFFSET_MINUTES = 330
 const ACTIVE_BOOKING_STATUSES = new Set(['pending', 'approved'])
+
+export const BOOKING_LOCK_SCHEMA_VERSION = 2
+export const BOOKING_LOCK_BUCKET_MINUTES = BOOKING_LIMITS.LOCK_BUCKET_MINUTES
+export const MAX_DAILY_BOOKING_LOCK_BUCKETS = Math.ceil(24 * 60 / BOOKING_LOCK_BUCKET_MINUTES)
+export const MAX_BOOKING_LOCK_BUCKETS = Math.ceil(
+    BOOKING_LIMITS.MAX_DURATION_HOURS * 60 / BOOKING_LOCK_BUCKET_MINUTES,
+) + 1
 
 const pad2 = (value) => String(value).padStart(2, '0')
 
@@ -90,6 +97,67 @@ export const buildSlotRecord = (booking, slotId, minute, status = booking.status
     status,
     created_at: booking.created_at,
     updated_at: booking.updated_at,
+})
+
+// Version 1 used one document per minute. Version 2 uses deterministic 15-minute
+// bucket documents, with exact booking intervals stored inside each bucket. The
+// interval check avoids both missed overlaps and false conflicts for unaligned
+// start/end times while keeping an eight-hour booking below 40 lock documents.
+export const getBookingLockBuckets = (booking) => {
+    const startMinute = parseTimeToMinute(booking.start_time)
+    const endMinute = parseTimeToMinute(booking.end_time)
+
+    if (!Number.isFinite(startMinute) || !Number.isFinite(endMinute) || startMinute >= endMinute) {
+        return []
+    }
+
+    const firstBucket = Math.floor(startMinute / BOOKING_LOCK_BUCKET_MINUTES) * BOOKING_LOCK_BUCKET_MINUTES
+    const lastBucket = Math.floor((endMinute - 1) / BOOKING_LOCK_BUCKET_MINUTES) * BOOKING_LOCK_BUCKET_MINUTES
+    const buckets = []
+    for (let minute = firstBucket; minute <= lastBucket; minute += BOOKING_LOCK_BUCKET_MINUTES) {
+        buckets.push(minute)
+    }
+    return buckets
+}
+
+export const getBookingLockId = (booking, bucketMinute) => {
+    return `${booking.machine_id}_${booking.booking_date}_bucket_${formatSlotMinute(bucketMinute)}`
+}
+
+export const buildBookingLockReservation = (booking, status = booking.status) => ({
+    booking_id: booking.id,
+    student_id: booking.student_id,
+    start_minute: parseTimeToMinute(booking.start_time),
+    end_minute: parseTimeToMinute(booking.end_time),
+    status,
+    created_at: booking.created_at,
+    updated_at: booking.updated_at,
+})
+
+export const buildBookingLockPatch = (booking, bucketMinute, status = booking.status) => ({
+    schema_version: BOOKING_LOCK_SCHEMA_VERSION,
+    id: getBookingLockId(booking, bucketMinute),
+    machine_id: booking.machine_id,
+    booking_date: booking.booking_date,
+    bucket_start_minute: bucketMinute,
+    bucket_end_minute: bucketMinute + BOOKING_LOCK_BUCKET_MINUTES,
+    reservations: {
+        [booking.id]: buildBookingLockReservation(booking, status),
+    },
+    updated_at: booking.updated_at,
+})
+
+export const buildBookingLockReleasePatch = (booking, bucketMinute, deleteValue, updatedAt) => ({
+    schema_version: BOOKING_LOCK_SCHEMA_VERSION,
+    id: getBookingLockId(booking, bucketMinute),
+    machine_id: booking.machine_id,
+    booking_date: booking.booking_date,
+    bucket_start_minute: bucketMinute,
+    bucket_end_minute: bucketMinute + BOOKING_LOCK_BUCKET_MINUTES,
+    reservations: {
+        [booking.id]: deleteValue,
+    },
+    updated_at: updatedAt,
 })
 
 export const validateBookingPayload = (payload, { uid, now = new Date(), limits = BOOKING_LIMITS }) => {

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from './http'
-import { getSlotId, getSlotMinutes, validateBookingPayload } from './bookingPolicy'
+import {
+    getBookingLockBuckets,
+    getBookingLockId,
+    getSlotId,
+    getSlotMinutes,
+    MAX_BOOKING_LOCK_BUCKETS,
+    validateBookingPayload,
+} from './bookingPolicy'
 
 const fixedNow = new Date('2026-05-03T05:00:00.000Z') // 10:30 in India
 
@@ -41,6 +48,16 @@ describe('server booking policy', () => {
         expect(() => validateBookingPayload({
             ...validPayload,
             start_time: '11:00',
+            end_time: '19:00',
+        }, {
+            uid: 'student-1',
+            now: fixedNow,
+            limits: { max_duration_hours: 8, max_advance_days: 30 },
+        })).not.toThrow()
+
+        expect(() => validateBookingPayload({
+            ...validPayload,
+            start_time: '11:00',
             end_time: '14:30',
         }, {
             uid: 'student-1',
@@ -58,7 +75,7 @@ describe('server booking policy', () => {
         })).toThrow(/5 days/)
     })
 
-    it('generates deterministic minute slot IDs', () => {
+    it('retains deterministic legacy minute slot helpers for migration tooling', () => {
         const booking = {
             id: 'booking-1',
             machine_id: 'machine-1',
@@ -69,5 +86,24 @@ describe('server booking policy', () => {
 
         expect(getSlotMinutes(booking)).toEqual([660, 661, 662])
         expect(getSlotId(booking, 660)).toBe('machine-1_2026-05-03_1100')
+    })
+
+    it('covers the full eight-hour maximum with a bounded number of 15-minute lock documents', () => {
+        const aligned = {
+            id: 'booking-1',
+            machine_id: 'machine-1',
+            booking_date: '2026-05-04',
+            start_time: '09:00:00',
+            end_time: '17:00:00',
+        }
+        const unaligned = { ...aligned, start_time: '09:07:00', end_time: '17:07:00' }
+
+        expect(getBookingLockBuckets(aligned)).toHaveLength(32)
+        expect(getBookingLockBuckets(unaligned)).toHaveLength(33)
+        expect(getBookingLockBuckets(unaligned).length).toBeLessThanOrEqual(MAX_BOOKING_LOCK_BUCKETS)
+        expect(getBookingLockId(aligned, 540)).toBe('machine-1_2026-05-04_bucket_0900')
+        // Booking + audit + two guards still leaves the transaction far below
+        // Firestore's 500-write limit at the maximum allowed duration.
+        expect(getBookingLockBuckets(unaligned).length + 4).toBeLessThan(500)
     })
 })

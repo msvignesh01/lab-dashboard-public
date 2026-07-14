@@ -1,26 +1,35 @@
 import crypto from 'node:crypto'
-import { adminDb } from '../../_lib/firebaseAdmin.js'
+import { adminDb, FieldValue } from '../../_lib/firebaseAdmin.js'
 import { getAuthenticatedContext } from '../../_lib/authContext.js'
 import { assertMethod, handleApi, parseJsonBody, sendOk, ApiError } from '../../_lib/http.js'
 import { isValidFirestoreId } from '../../_lib/ids.js'
+import { fromFirestoreDocument } from '../../_lib/firestoreData.js'
 import {
-    buildSlotRecord,
     addDaysToDateString,
-    getSlotId,
-    getSlotMinutes,
+    buildBookingLockPatch,
+    getBookingLockBuckets,
+    getBookingLockId,
+    MAX_BOOKING_LOCK_BUCKETS,
     toLabDateString,
     validateBookingPayload,
 } from '../../_lib/bookingPolicy.js'
 import { getLabConfig, assertWithinLabHours } from '../../_lib/labConfig.js'
-import { assertNoMaintenanceConflict } from '../../_lib/availability.js'
+import { assertNoMaintenanceConflict, getTrainingRecordId } from '../../_lib/availability.js'
+import {
+    assertBookingApprovalSafety,
+    assertBookingLocksAvailable,
+    getScheduleGuardRefs,
+    transactionGetAll,
+} from '../../_lib/schedulePolicy.js'
 import { writeAuditLog } from '../../_lib/audit.js'
 import { createNotification, notifyFacultyAndAdmins } from '../../_lib/notifications.js'
 import { assertRateLimit } from '../../_lib/rateLimit.js'
-import { parseTimeToMinute } from '../../../src/lib/bookingValidation.js'
+import { parseTimeToMinute } from '../../../shared/bookingValidation.js'
+import { toBookingReviewerProfileSummary } from '../../_lib/userPolicy.js'
 
 const nowIso = () => new Date().toISOString()
 
-const fromDoc = (doc) => ({ id: doc.id, ...doc.data() })
+const fromDoc = fromFirestoreDocument
 
 const fetchById = async (collectionName, id) => {
     if (!isValidFirestoreId(id)) return null
@@ -28,11 +37,16 @@ const fetchById = async (collectionName, id) => {
     return snap.exists ? fromDoc(snap) : null
 }
 
+const fetchProfileSummary = async (id) => {
+    const profile = await fetchById('profiles', id)
+    return toBookingReviewerProfileSummary(profile)
+}
+
 const enrichBookings = async (bookings, includeProfiles = false) => {
     return Promise.all(bookings.map(async (booking) => ({
         ...booking,
         machines: await fetchById('machines', booking.machine_id),
-        ...(includeProfiles ? { profiles: await fetchById('profiles', booking.student_id) } : {}),
+        ...(includeProfiles ? { profiles: await fetchProfileSummary(booking.student_id) } : {}),
     })))
 }
 
@@ -112,41 +126,74 @@ export default handleApi(async (req, res) => {
         updated_at: timestamp,
     }
 
-    const slotMinutes = getSlotMinutes(booking)
-    if (slotMinutes.length === 0 || slotMinutes.length > 480) {
+    const lockBuckets = getBookingLockBuckets(booking)
+    if (lockBuckets.length === 0 || lockBuckets.length > MAX_BOOKING_LOCK_BUCKETS) {
         throw new ApiError(400, 'Invalid booking duration.', 'invalid_booking_duration')
     }
 
     await adminDb.runTransaction(async (transaction) => {
         const machineRef = adminDb.collection('machines').doc(booking.machine_id)
-        const machineSnap = await transaction.get(machineRef)
+        const profileRef = adminDb.collection('profiles').doc(booking.student_id)
+        const guardRefs = getScheduleGuardRefs(adminDb, { machineId: booking.machine_id })
+        const lockRefs = lockBuckets.map((bucketMinute) => ({
+            bucketMinute,
+            ref: adminDb.collection('booking_slots').doc(getBookingLockId(booking, bucketMinute)),
+        }))
+        const snapshots = await transactionGetAll(transaction, [
+            ...guardRefs,
+            machineRef,
+            profileRef,
+            ...lockRefs.map((lock) => lock.ref),
+        ])
+        const machineSnap = snapshots[guardRefs.length]
+        const profileSnap = snapshots[guardRefs.length + 1]
+        const lockSnapshots = snapshots.slice(guardRefs.length + 2)
 
         if (!machineSnap.exists) {
             throw new ApiError(404, 'Selected machine was not found.', 'machine_not_found')
         }
 
-        if (machineSnap.data().is_active !== true) {
-            throw new ApiError(409, 'Selected machine is not available for booking.', 'machine_unavailable')
+        const machine = fromFirestoreDocument(machineSnap)
+        const studentProfile = profileSnap.exists ? fromFirestoreDocument(profileSnap) : null
+        let trainingRecord = null
+        if (machine.requires_training === true) {
+            const trainingSnap = await transaction.get(
+                adminDb.collection('training_records').doc(getTrainingRecordId(booking.student_id, booking.machine_id)),
+            )
+            trainingRecord = trainingSnap.exists ? fromFirestoreDocument(trainingSnap) : null
         }
 
-        const slotRefs = slotMinutes.map((minute) => ({
-            minute,
-            id: getSlotId(booking, minute),
-            ref: adminDb.collection('booking_slots').doc(getSlotId(booking, minute)),
-        }))
-
-        for (const slot of slotRefs) {
-            const slotSnap = await transaction.get(slot.ref)
-            if (slotSnap.exists && ['pending', 'approved'].includes(slotSnap.data().status)) {
-                throw new ApiError(409, 'This booking conflicts with an existing booking.', 'booking_conflict')
-            }
-        }
+        const currentLabConfig = await getLabConfig(transaction)
+        const maintenanceSnap = await transaction.get(
+            adminDb.collection('maintenance_windows').where('status', '==', 'active'),
+        )
+        const bookingsSnap = await transaction.get(
+            adminDb.collection('bookings').where('booking_date', '==', booking.booking_date),
+        )
+        assertBookingApprovalSafety({
+            booking,
+            machine,
+            studentProfile,
+            trainingRecord,
+            labConfig: currentLabConfig,
+            maintenanceWindows: maintenanceSnap.docs.map(fromDoc),
+            bookings: bookingsSnap.docs.map(fromDoc),
+        })
+        assertBookingLocksAvailable({ booking, lockSnapshots })
 
         const bookingRef = adminDb.collection('bookings').doc(bookingId)
         transaction.create(bookingRef, booking)
 
-        for (const slot of slotRefs) {
-            transaction.create(slot.ref, buildSlotRecord(booking, slot.id, slot.minute))
+        for (const lock of lockRefs) {
+            transaction.set(lock.ref, buildBookingLockPatch(booking, lock.bucketMinute), { merge: true })
+        }
+        for (const guardRef of guardRefs) {
+            transaction.set(guardRef, {
+                version: FieldValue.increment(1),
+                machine_id: guardRef.id === 'global' ? null : booking.machine_id,
+                updated_at: timestamp,
+                updated_by: context.uid,
+            }, { merge: true })
         }
 
         writeAuditLog({

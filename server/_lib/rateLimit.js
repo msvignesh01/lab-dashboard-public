@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase-admin/firestore'
 import { adminDb } from './firebaseAdmin.js'
 import { ApiError } from './http.js'
 
@@ -20,7 +21,9 @@ export const assertRateLimit = async ({ uid, action, limit = 30, windowMs = 60_0
             action,
             count: count + 1,
             window_id: windowId,
-            expires_at: new Date((windowId + 2) * windowMs).toISOString(),
+            // Firestore TTL policies require a timestamp field, not an ISO string.
+            // Retain one complete window after enforcement for diagnostics.
+            expires_at: Timestamp.fromMillis((windowId + 2) * windowMs),
             updated_at: new Date().toISOString(),
         }, { merge: true })
     })

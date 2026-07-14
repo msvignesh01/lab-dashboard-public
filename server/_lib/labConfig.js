@@ -1,8 +1,8 @@
 import { adminDb } from './firebaseAdmin.js'
 import { ApiError } from './http.js'
 import { parseDateOnlyParts } from './bookingPolicy.js'
-import { parseTimeToMinute } from '../../src/lib/bookingValidation.js'
-import { BOOKING_LIMITS } from '../../src/lib/constants.js'
+import { parseTimeToMinute } from '../../shared/bookingValidation.js'
+import { BOOKING_LIMITS } from '../../shared/constants.js'
 
 export const LAB_CONFIG_ID = 'default'
 export const LAB_TIMEZONE = 'Asia/Kolkata'
@@ -58,7 +58,9 @@ export const normalizeLabConfig = (data = {}) => {
         max_advance_days: Number.isInteger(data.max_advance_days) && data.max_advance_days > 0 && data.max_advance_days <= 90
             ? data.max_advance_days
             : DEFAULT_LAB_CONFIG.max_advance_days,
-        max_duration_hours: Number.isInteger(data.max_duration_hours) && data.max_duration_hours > 0 && data.max_duration_hours <= 12
+        max_duration_hours: Number.isInteger(data.max_duration_hours)
+            && data.max_duration_hours > 0
+            && data.max_duration_hours <= BOOKING_LIMITS.MAX_DURATION_HOURS
             ? data.max_duration_hours
             : DEFAULT_LAB_CONFIG.max_duration_hours,
     }
@@ -102,8 +104,16 @@ export const sanitizeLabConfigPayload = (payload, currentConfig, actorUid) => {
         throw new ApiError(400, 'Advance booking limit must be between 1 and 90 days.', 'invalid_advance_limit')
     }
 
-    if (!Number.isInteger(maxDurationHours) || maxDurationHours < 1 || maxDurationHours > 12) {
-        throw new ApiError(400, 'Booking duration limit must be between 1 and 12 hours.', 'invalid_duration_limit')
+    if (
+        !Number.isInteger(maxDurationHours)
+        || maxDurationHours < 1
+        || maxDurationHours > BOOKING_LIMITS.MAX_DURATION_HOURS
+    ) {
+        throw new ApiError(
+            400,
+            `Booking duration limit must be between 1 and ${BOOKING_LIMITS.MAX_DURATION_HOURS} hours.`,
+            'invalid_duration_limit',
+        )
     }
 
     return normalizeLabConfig({

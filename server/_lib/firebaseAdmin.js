@@ -7,8 +7,8 @@ const normalizePrivateKey = (key) => {
     return key.replace(/\\n/g, '\n')
 }
 
-const getRequiredEnv = (name, fallbackName) => {
-    const value = process.env[name] || (fallbackName ? process.env[fallbackName] : '')
+const getRequiredEnv = (name) => {
+    const value = process.env[name]
     if (!value) {
         throw new Error(`Missing required server environment variable: ${name}`)
     }
@@ -18,17 +18,9 @@ const getRequiredEnv = (name, fallbackName) => {
 const createAdminApp = () => {
     if (getApps().length > 0) return getApps()[0]
 
-    const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID
-        || process.env.GOOGLE_CLOUD_PROJECT
-        || process.env.GCLOUD_PROJECT
-        || process.env.VITE_FIREBASE_PROJECT_ID
-
-    if (!projectId) {
-        throw new Error('Missing required server environment variable: FIREBASE_ADMIN_PROJECT_ID')
-    }
-
-    const clientEmail = getRequiredEnv('FIREBASE_ADMIN_CLIENT_EMAIL', 'GCP_CLIENT_EMAIL')
-    const privateKey = normalizePrivateKey(getRequiredEnv('FIREBASE_ADMIN_PRIVATE_KEY', 'GCP_PRIVATE_KEY'))
+    const projectId = getRequiredEnv('FIREBASE_ADMIN_PROJECT_ID')
+    const clientEmail = getRequiredEnv('FIREBASE_ADMIN_CLIENT_EMAIL')
+    const privateKey = normalizePrivateKey(getRequiredEnv('FIREBASE_ADMIN_PRIVATE_KEY'))
 
     return initializeApp({
         credential: cert({

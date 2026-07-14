@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import { adminDb } from './firebaseAdmin.js'
+import { fromFirestoreDocument } from './firestoreData.js'
 
 const toSafeText = (value, maxLength = 500) => String(value || '').trim().slice(0, maxLength)
 
@@ -104,13 +105,13 @@ const fetchActiveReviewers = async () => {
             .where('status', '==', 'active')
             .where('role', 'in', ['faculty', 'admin'])
             .get()
-        return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        return snapshot.docs.map(fromFirestoreDocument)
     } catch {
         // Fallback if the (status, role) composite index has not been deployed yet:
         // scan active profiles and filter in memory so notifications still send.
         const snapshot = await adminDb.collection('profiles').where('status', '==', 'active').get()
         return snapshot.docs
-            .map((doc) => ({ id: doc.id, ...doc.data() }))
+            .map(fromFirestoreDocument)
             .filter((profile) => ['faculty', 'admin'].includes(profile.role))
     }
 }

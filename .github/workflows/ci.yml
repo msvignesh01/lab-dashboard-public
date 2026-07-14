@@ -1,5 +1,12 @@
 name: CI
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
@@ -8,15 +15,22 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
+
+      - name: Setup Java for Firestore emulator
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
 
       - name: Install dependencies
         run: npm ci
@@ -24,11 +38,20 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Test
         run: npm test
 
+      - name: Firestore rules emulator tests
+        run: npm run test:rules
+
       - name: Build
         run: npm run build
+
+      - name: Production server smoke test
+        run: npm run test:smoke
 
       - name: Production dependency audit
         run: npm audit --omit=dev
