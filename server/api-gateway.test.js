@@ -1,5 +1,6 @@
+import { existsSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
-import handler, { createApiHandler } from './index.js'
+import handler, { createApiHandler } from './api-gateway.js'
 
 const response = () => {
     const headers = new Map()
@@ -20,6 +21,10 @@ const response = () => {
 }
 
 describe('API facade dispatch boundary', () => {
+    it('does not expose a duplicate top-level Vercel API function surface', () => {
+        expect(existsSync(new URL('../api', import.meta.url))).toBe(false)
+    })
+
     it.each([
         '/api/not-a-route',
         '/api/internal/sync',

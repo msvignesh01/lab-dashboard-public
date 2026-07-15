@@ -10,7 +10,7 @@ This repository now has one frontend: the Next.js application in `app/` and `com
 - TypeScript is used throughout the frontend and service layer. The supported runtime is Node.js 22 with npm 10.
 - Firebase Authentication provides email/password identity and verified-email state.
 - Cloud Firestore stores profiles, machines, bookings, availability locks, training records, maintenance windows, notifications, configuration, rate-limit records, and audit history.
-- `pages/api/[...path].js` is the trusted Next.js Pages API facade for `/api/*`. It delegates to the handlers under `api/` and `server/`.
+- `pages/api/[...path].js` is the only deployed `/api/*` entrypoint. It delegates to the server-only dispatcher and handlers under `server/`; there is no parallel top-level Vercel Function surface.
 - Profile registration, profile edits, and every operational data read/write use validated trusted API routes; the browser has no direct Firestore data path.
 - Firebase Admin SDK credentials are loaded only by trusted server code. The browser never receives service-account credentials.
 - Firestore Security Rules close the entire browser data plane. Reads and writes are performed by the API only after token, immutable identity, profile, status, role, and payload checks.
@@ -38,8 +38,7 @@ hooks/               Auth and client-state hooks
 lib/                 Client utilities, types, validation, navigation, and Firebase setup
 services/            Typed browser services for Firebase Auth and trusted API calls
 pages/api/           Next.js Pages API catch-all facade
-api/                 API router shared by the facade
-server/              Trusted handlers, authorization, validation, transactions, and audit code
+server/              API dispatcher, trusted handlers, authorization, validation, transactions, and audit code
 shared/              Validation and constants shared by browser-independent server/tests
 firebase/            Firestore rules, indexes, emulator tests, and Firebase notes
 scripts/             Controlled admin and data-hardening utilities

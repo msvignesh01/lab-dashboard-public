@@ -1,29 +1,29 @@
-import { ApiError, getBearerToken, sendError } from '../server/_lib/http.js'
+import { ApiError, getBearerToken, sendError } from './_lib/http.js'
 
 // Fixed-literal dynamic imports keep route loading lazy without allowing any
 // user-controlled module path. This lets the facade reject unknown or
 // unauthenticated requests before Firebase Admin configuration is touched.
 const loaders = {
-    auditLog: () => import('../server/_routes/audit-log/index.js'),
-    bookings: () => import('../server/_routes/bookings/index.js'),
-    cancelBooking: () => import('../server/_routes/bookings/[bookingId]/cancel.js'),
-    reviewBooking: () => import('../server/_routes/bookings/[bookingId]/review.js'),
-    labConfig: () => import('../server/_routes/lab-config/index.js'),
-    machines: () => import('../server/_routes/machines/index.js'),
-    machineDetails: () => import('../server/_routes/machines/[machineId].js'),
-    machineAvailability: () => import('../server/_routes/machines/[machineId]/availability.js'),
-    maintenanceWindows: () => import('../server/_routes/maintenance-windows/index.js'),
-    maintenanceWindowDetails: () => import('../server/_routes/maintenance-windows/[windowId].js'),
-    notifications: () => import('../server/_routes/notifications/index.js'),
-    facultyRequests: () => import('../server/_routes/profile/faculty-requests.js'),
-    profileMe: () => import('../server/_routes/profile/me.js'),
-    registerProfile: () => import('../server/_routes/profile/register.js'),
-    approveProfile: () => import('../server/_routes/profile/[userId]/approve.js'),
-    rejectProfile: () => import('../server/_routes/profile/[userId]/reject.js'),
-    trainingRecords: () => import('../server/_routes/training-records/index.js'),
-    users: () => import('../server/_routes/users/index.js'),
-    updateUserRole: () => import('../server/_routes/users/[userId]/role.js'),
-    updateUserStatus: () => import('../server/_routes/users/[userId]/status.js'),
+    auditLog: () => import('./_routes/audit-log/index.js'),
+    bookings: () => import('./_routes/bookings/index.js'),
+    cancelBooking: () => import('./_routes/bookings/[bookingId]/cancel.js'),
+    reviewBooking: () => import('./_routes/bookings/[bookingId]/review.js'),
+    labConfig: () => import('./_routes/lab-config/index.js'),
+    machines: () => import('./_routes/machines/index.js'),
+    machineDetails: () => import('./_routes/machines/[machineId].js'),
+    machineAvailability: () => import('./_routes/machines/[machineId]/availability.js'),
+    maintenanceWindows: () => import('./_routes/maintenance-windows/index.js'),
+    maintenanceWindowDetails: () => import('./_routes/maintenance-windows/[windowId].js'),
+    notifications: () => import('./_routes/notifications/index.js'),
+    facultyRequests: () => import('./_routes/profile/faculty-requests.js'),
+    profileMe: () => import('./_routes/profile/me.js'),
+    registerProfile: () => import('./_routes/profile/register.js'),
+    approveProfile: () => import('./_routes/profile/[userId]/approve.js'),
+    rejectProfile: () => import('./_routes/profile/[userId]/reject.js'),
+    trainingRecords: () => import('./_routes/training-records/index.js'),
+    users: () => import('./_routes/users/index.js'),
+    updateUserRole: () => import('./_routes/users/[userId]/role.js'),
+    updateUserStatus: () => import('./_routes/users/[userId]/status.js'),
 }
 
 const route = (loader, params = {}) => ({ loader, params })
