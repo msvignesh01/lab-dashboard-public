@@ -1,4 +1,4 @@
-import apiHandler from "../../api/index.js"
+import apiHandler from "../../server/api-gateway.js"
 
 export const config = {
   api: {
