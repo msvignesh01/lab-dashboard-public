@@ -1,43 +1,154 @@
-name: Deploy Firestore rules & indexes
+name: Deploy Firestore component
 
-# Keeps deployed Firestore security rules and indexes in sync with the repo.
-# Without this, rules/indexes only update when someone remembers to run the CLI by
-# hand — a stale ruleset or a missing composite index silently breaks production.
-#
-# Requires two repository secrets:
-#   FIREBASE_TOKEN       -> from `npx firebase login:ci`
-#   FIREBASE_PROJECT_ID  -> e.g. lab-dashboard-2809
-# If FIREBASE_TOKEN is absent the job no-ops instead of failing, so forks/PRs are safe.
+permissions:
+  contents: read
+  id-token: write
 
+concurrency:
+  group: firestore-production
+  cancel-in-progress: false
+
+# Firestore policy changes are intentionally decoupled from application deploys.
+# Configure required reviewers on the `firestore-production` GitHub environment.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'firebase/**'
-      - 'firebase.json'
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Exact 40-character reviewed commit SHA to deploy
+        required: true
+        type: string
+      project_id:
+        description: Explicit Firebase project ID
+        required: true
+        type: string
+      component:
+        description: Deploy indexes before application promotion; deploy rules after trusted API smoke
+        required: true
+        type: choice
+        options:
+          - indexes
+          - rules
+      confirmation:
+        description: Type DEPLOY_FIRESTORE_INDEXES or DEPLOY_FIRESTORE_RULES to match the selected component
+        required: true
+        type: string
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: firestore-production
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Validate deployment approval inputs
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          DEPLOY_COMPONENT: ${{ inputs.component }}
+          DEPLOY_REF: ${{ inputs.ref }}
+          WORKFLOW_REF: ${{ github.ref }}
+          REQUESTED_PROJECT_ID: ${{ inputs.project_id }}
+          CONFIGURED_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          DEPLOY_SERVICE_ACCOUNT: ${{ vars.FIREBASE_DEPLOY_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          case "$DEPLOY_COMPONENT" in
+            indexes) EXPECTED_CONFIRMATION="DEPLOY_FIRESTORE_INDEXES" ;;
+            rules) EXPECTED_CONFIRMATION="DEPLOY_FIRESTORE_RULES" ;;
+            *)
+              echo "Unsupported Firestore deployment component."
+              exit 1
+              ;;
+          esac
+          test "$CONFIRMATION" = "$EXPECTED_CONFIRMATION" || {
+            echo "Confirmation phrase did not match; refusing deployment."
+            exit 1
+          }
+          test "$WORKFLOW_REF" = "refs/heads/main" || {
+            echo "The production deployment workflow must be dispatched from main."
+            exit 1
+          }
+          [[ "$DEPLOY_REF" =~ ^[0-9a-fA-F]{40}$ ]] || {
+            echo "Deployment ref must be an exact 40-character commit SHA."
+            exit 1
+          }
+          test -n "$WORKLOAD_IDENTITY_PROVIDER" || {
+            echo "GCP_WORKLOAD_IDENTITY_PROVIDER is not configured; refusing deployment."
+            exit 1
+          }
+          test -n "$DEPLOY_SERVICE_ACCOUNT" || {
+            echo "FIREBASE_DEPLOY_SERVICE_ACCOUNT is not configured; refusing deployment."
+            exit 1
+          }
+          test -n "$CONFIGURED_PROJECT_ID" || {
+            echo "FIREBASE_PROJECT_ID is not configured; refusing deployment."
+            exit 1
+          }
+          test "$REQUESTED_PROJECT_ID" = "$CONFIGURED_PROJECT_ID" || {
+            echo "Requested project does not match the protected environment."
+            exit 1
+          }
+
+      - name: Checkout reviewed ref
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Verify reviewed commit is on main
+        env:
+          DEPLOY_REF: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$DEPLOY_REF" || {
+            echo "Checked-out commit does not match the approved SHA."
+            exit 1
+          }
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$DEPLOY_REF" origin/main || {
+            echo "Approved SHA is not reachable from origin/main."
+            exit 1
+          }
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - name: Deploy Firestore rules and indexes
+
+      - name: Setup Java for Firestore emulator
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Firestore rules
+        run: npm run test:rules
+
+      - name: Authenticate with short-lived Google credentials
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ inputs.project_id }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.FIREBASE_DEPLOY_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+
+      - name: Deploy reviewed Firestore component
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          DEPLOY_COMPONENT: ${{ inputs.component }}
+          FIREBASE_PROJECT_ID: ${{ inputs.project_id }}
         run: |
-          if [ -z "$FIREBASE_TOKEN" ] || [ -z "$FIREBASE_PROJECT_ID" ]; then
-            echo "FIREBASE_TOKEN / FIREBASE_PROJECT_ID not configured — skipping Firestore deploy."
-            exit 0
-          fi
+          set -euo pipefail
+          case "$DEPLOY_COMPONENT" in
+            indexes|rules) ;;
+            *)
+              echo "Unsupported Firestore deployment component."
+              exit 1
+              ;;
+          esac
           npx firebase deploy \
-            --only firestore:rules,firestore:indexes \
+            --only "firestore:${DEPLOY_COMPONENT}" \
             --project "$FIREBASE_PROJECT_ID" \
-            --token "$FIREBASE_TOKEN" \
             --non-interactive

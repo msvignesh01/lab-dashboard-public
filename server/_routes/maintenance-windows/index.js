@@ -1,14 +1,21 @@
 import crypto from 'node:crypto'
-import { adminDb } from '../../_lib/firebaseAdmin.js'
+import { adminDb, FieldValue } from '../../_lib/firebaseAdmin.js'
 import { getAuthenticatedContext } from '../../_lib/authContext.js'
 import { assertMethod, handleApi, parseJsonBody, sendOk, ApiError } from '../../_lib/http.js'
 import { isValidFirestoreId } from '../../_lib/ids.js'
+import { fromFirestoreDocument } from '../../_lib/firestoreData.js'
 import { parseDateOnlyParts } from '../../_lib/bookingPolicy.js'
 import { LAB_TIMEZONE_OFFSET_MINUTES } from '../../_lib/labConfig.js'
-import { parseTimeToMinute } from '../../../src/lib/bookingValidation.js'
+import { parseTimeToMinute } from '../../../shared/bookingValidation.js'
 import { writeAuditLog } from '../../_lib/audit.js'
 import { assertRateLimit } from '../../_lib/rateLimit.js'
 import { notifyFacultyAndAdmins } from '../../_lib/notifications.js'
+import {
+    assertMaintenanceHasNoBookingConflict,
+    getMaintenanceBookingDateBounds,
+    getScheduleGuardRefs,
+    transactionGetAll,
+} from '../../_lib/schedulePolicy.js'
 
 const nowIso = () => new Date().toISOString()
 
@@ -68,7 +75,7 @@ export default handleApi(async (req, res) => {
 
     if (req.method === 'GET') {
         const snapshot = await adminDb.collection('maintenance_windows').orderBy('start_at', 'desc').limit(100).get()
-        return sendOk(res, snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
+        return sendOk(res, snapshot.docs.map(fromFirestoreDocument))
     }
 
     await assertRateLimit({ uid: context.uid, action: 'maintenance_create', limit: 30, windowMs: 60_000 })
@@ -79,20 +86,52 @@ export default handleApi(async (req, res) => {
         ...sanitizeMaintenancePayload(body, context.uid),
     }
 
-    if (record.scope === 'machine') {
-        const machineSnap = await adminDb.collection('machines').doc(record.machine_id).get()
-        if (!machineSnap.exists) {
+    await adminDb.runTransaction(async (transaction) => {
+        const maintenanceRef = adminDb.collection('maintenance_windows').doc(id)
+        const guardRefs = getScheduleGuardRefs(adminDb, {
+            machineId: record.machine_id,
+            scope: record.scope,
+        })
+        const machineRef = record.scope === 'machine'
+            ? adminDb.collection('machines').doc(record.machine_id)
+            : null
+        const snapshots = await transactionGetAll(transaction, [
+            ...guardRefs,
+            ...(machineRef ? [machineRef] : []),
+        ])
+        if (machineRef && !snapshots[guardRefs.length]?.exists) {
             throw new ApiError(404, 'Machine not found.', 'machine_not_found')
         }
-    }
 
-    await adminDb.collection('maintenance_windows').doc(id).create(record)
-    await writeAuditLog({
-        actor: context,
-        action: 'maintenance.created',
-        entity_type: 'maintenance_window',
-        entity_id: id,
-        metadata: record,
+        const { dateFrom, dateTo } = getMaintenanceBookingDateBounds(record, LAB_TIMEZONE_OFFSET_MINUTES)
+        const bookingsSnap = await transaction.get(
+            adminDb.collection('bookings')
+                .where('booking_date', '>=', dateFrom)
+                .where('booking_date', '<=', dateTo),
+        )
+        assertMaintenanceHasNoBookingConflict({
+            maintenance: record,
+            bookings: bookingsSnap.docs.map(fromFirestoreDocument),
+            timezoneOffsetMinutes: LAB_TIMEZONE_OFFSET_MINUTES,
+        })
+
+        transaction.create(maintenanceRef, record)
+        for (const guardRef of guardRefs) {
+            transaction.set(guardRef, {
+                version: FieldValue.increment(1),
+                machine_id: guardRef.id === 'global' ? null : record.machine_id,
+                updated_at: record.updated_at,
+                updated_by: context.uid,
+            }, { merge: true })
+        }
+        writeAuditLog({
+            transaction,
+            actor: context,
+            action: 'maintenance.created',
+            entity_type: 'maintenance_window',
+            entity_id: id,
+            metadata: record,
+        })
     })
     await notifyFacultyAndAdmins({
         type: 'maintenance_created',

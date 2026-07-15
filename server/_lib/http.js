@@ -20,7 +20,11 @@ export const getBearerToken = (req) => {
     if (!value.startsWith('Bearer ')) {
         throw new ApiError(401, 'Authentication required', 'auth_required')
     }
-    return value.slice('Bearer '.length).trim()
+    const token = value.slice('Bearer '.length).trim()
+    if (!token) {
+        throw new ApiError(401, 'Authentication required', 'auth_required')
+    }
+    return token
 }
 
 export const parseJsonBody = async (req) => {
@@ -55,11 +59,19 @@ export const getRouteParam = (req, name) => {
     return value
 }
 
+const setPrivateNoStore = (res) => {
+    if (typeof res.setHeader !== 'function') return
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0')
+    res.setHeader('Pragma', 'no-cache')
+}
+
 export const sendOk = (res, data = null, status = 200) => {
+    setPrivateNoStore(res)
     return res.status(status).json({ data, error: null })
 }
 
 export const sendError = (res, err) => {
+    setPrivateNoStore(res)
     const status = Number.isInteger(err?.status) ? err.status : 500
     const code = err?.code || (status === 500 ? 'internal_error' : 'request_failed')
     const message = status >= 500

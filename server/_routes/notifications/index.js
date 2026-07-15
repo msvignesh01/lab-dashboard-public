@@ -2,6 +2,7 @@ import { adminDb } from '../../_lib/firebaseAdmin.js'
 import { getAuthenticatedContext } from '../../_lib/authContext.js'
 import { assertMethod, handleApi, parseJsonBody, sendOk, ApiError } from '../../_lib/http.js'
 import { isValidFirestoreId } from '../../_lib/ids.js'
+import { fromFirestoreDocument } from '../../_lib/firestoreData.js'
 
 export default handleApi(async (req, res) => {
     assertMethod(req, ['GET', 'PATCH'])
@@ -19,7 +20,7 @@ export default handleApi(async (req, res) => {
                 .orderBy('created_at', 'desc')
                 .limit(50)
                 .get()
-            return sendOk(res, snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
+            return sendOk(res, snapshot.docs.map(fromFirestoreDocument))
         } catch (err) {
             // Fallback if the (user_id, created_at) composite index is not deployed yet:
             // fetch the user's notifications and sort newest-first in memory so the
@@ -27,7 +28,7 @@ export default handleApi(async (req, res) => {
             if (err?.code === 9 || err?.code === 'failed-precondition') {
                 const snap = await adminDb.collection('notifications').where('user_id', '==', context.uid).get()
                 const items = snap.docs
-                    .map((doc) => ({ id: doc.id, ...doc.data() }))
+                    .map(fromFirestoreDocument)
                     .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
                     .slice(0, 50)
                 return sendOk(res, items)

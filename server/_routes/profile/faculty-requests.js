@@ -1,6 +1,7 @@
 import { adminDb } from '../../_lib/firebaseAdmin.js'
 import { getAuthenticatedContext } from '../../_lib/authContext.js'
 import { assertMethod, handleApi, sendOk } from '../../_lib/http.js'
+import { fromFirestoreDocument } from '../../_lib/firestoreData.js'
 
 export default handleApi(async (req, res) => {
     assertMethod(req, 'GET')
@@ -17,7 +18,7 @@ export default handleApi(async (req, res) => {
         .where('requested_role', '==', 'faculty')
         .get()
 
-    const requests = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    const requests = snapshot.docs.map(fromFirestoreDocument)
         .filter((profile) => Boolean(profile.email_verified_at))
         .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
 

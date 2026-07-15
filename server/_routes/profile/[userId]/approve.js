@@ -2,9 +2,11 @@ import { adminAuth, adminDb } from '../../../_lib/firebaseAdmin.js'
 import { getAuthenticatedContext } from '../../../_lib/authContext.js'
 import { assertMethod, getRouteParam, handleApi, sendOk, ApiError } from '../../../_lib/http.js'
 import { isValidFirestoreId } from '../../../_lib/ids.js'
-import { writeAuditLog } from '../../../_lib/audit.js'
+import { fromFirestoreDocument } from '../../../_lib/firestoreData.js'
+import { runAuditedTransaction } from '../../../_lib/audit.js'
 import { createNotification } from '../../../_lib/notifications.js'
 import { assertRateLimit } from '../../../_lib/rateLimit.js'
+import { assertRoleTargetIdentity } from '../../../_lib/userPolicy.js'
 
 const nowIso = () => new Date().toISOString()
 
@@ -24,21 +26,14 @@ export default handleApi(async (req, res) => {
     }
 
     const profileRef = adminDb.collection('profiles').doc(userId)
-    const profileSnap = await profileRef.get()
-    if (!profileSnap.exists) {
-        throw new ApiError(404, 'Profile not found.', 'profile_not_found')
-    }
-
-    const profile = { id: profileSnap.id, ...profileSnap.data() }
-    if (profile.requested_role !== 'faculty' || profile.status !== 'pending_approval') {
-        throw new ApiError(409, 'This account is not pending faculty approval.', 'not_pending_faculty')
-    }
-
     let authUser
     try {
         authUser = await adminAuth.getUser(userId)
-    } catch {
-        throw new ApiError(404, 'Firebase Auth user not found.', 'auth_user_not_found')
+    } catch (error) {
+        if (error?.code === 'auth/user-not-found') {
+            throw new ApiError(404, 'Firebase Auth user not found.', 'auth_user_not_found')
+        }
+        throw new ApiError(503, 'The faculty identity could not be verified.', 'auth_lookup_failed')
     }
 
     if (authUser.emailVerified !== true) {
@@ -46,25 +41,41 @@ export default handleApi(async (req, res) => {
     }
 
     const now = nowIso()
-    const verifiedAt = profile.email_verified_at || now
-    const update = {
-        role: 'faculty',
-        status: 'active',
-        approved_by: context.uid,
-        approved_at: now,
-        suspended_at: null,
-        email_verified_at: verifiedAt,
-        updated_at: now,
-    }
-
-    await profileRef.update(update)
-    const updatedProfile = { ...profile, ...update }
-    await writeAuditLog({
+    const updatedProfile = await runAuditedTransaction({
         actor: context,
-        action: 'faculty.approved',
-        entity_type: 'profile',
-        entity_id: userId,
-        metadata: { role: 'faculty' },
+        mutate: async (transaction) => {
+            const profileSnap = await transaction.get(profileRef)
+            if (!profileSnap.exists) {
+                throw new ApiError(404, 'Profile not found.', 'profile_not_found')
+            }
+
+            const profile = fromFirestoreDocument(profileSnap)
+            if (profile.requested_role !== 'faculty' || profile.status !== 'pending_approval') {
+                throw new ApiError(409, 'This account is not pending faculty approval.', 'not_pending_faculty')
+            }
+            assertRoleTargetIdentity({ authUser, profile, nextRole: 'faculty' })
+
+            const update = {
+                role: 'faculty',
+                status: 'active',
+                approved_by: context.uid,
+                approved_at: now,
+                suspended_at: null,
+                email_verified_at: profile.email_verified_at || now,
+                updated_at: now,
+            }
+            const updated = { ...profile, ...update }
+            transaction.update(profileRef, update)
+            return {
+                result: updated,
+                audit: {
+                    action: 'faculty.approved',
+                    entity_type: 'profile',
+                    entity_id: userId,
+                    metadata: { role: 'faculty' },
+                },
+            }
+        },
     })
     await createNotification({
         profile: updatedProfile,

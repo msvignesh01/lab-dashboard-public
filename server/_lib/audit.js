@@ -44,3 +44,40 @@ export const writeAuditLog = async ({
     await ref.set(record)
     return record
 }
+
+/**
+ * Runs a Firestore domain mutation and its audit write in the same transaction.
+ *
+ * The callback must return both the value exposed to the caller and the audit
+ * descriptor. Requiring the descriptor before the transaction callback can
+ * resolve prevents a future route from accidentally committing an unaudited
+ * mutation.
+ */
+export const runAuditedTransaction = async ({ actor = null, mutate }) => {
+    if (typeof mutate !== 'function') {
+        throw new TypeError('An audited transaction requires a mutation callback.')
+    }
+
+    return adminDb.runTransaction(async (transaction) => {
+        const outcome = await mutate(transaction)
+        if (!outcome || typeof outcome !== 'object' || !outcome.audit) {
+            throw new Error('Audited transaction did not provide an audit descriptor.')
+        }
+
+        const { result, audit } = outcome
+        if (!audit.action || !audit.entity_type || !audit.entity_id) {
+            throw new Error('Audited transaction provided an incomplete audit descriptor.')
+        }
+
+        await writeAuditLog({
+            transaction,
+            actor,
+            action: audit.action,
+            entity_type: audit.entity_type,
+            entity_id: audit.entity_id,
+            metadata: audit.metadata,
+        })
+
+        return result
+    })
+}

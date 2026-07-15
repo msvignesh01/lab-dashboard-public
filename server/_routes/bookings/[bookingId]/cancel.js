@@ -1,11 +1,14 @@
-import { adminDb } from '../../../_lib/firebaseAdmin.js'
+import { adminDb, FieldValue } from '../../../_lib/firebaseAdmin.js'
 import { getAuthenticatedContext } from '../../../_lib/authContext.js'
 import { assertMethod, getRouteParam, handleApi, sendOk, ApiError } from '../../../_lib/http.js'
 import { isValidFirestoreId } from '../../../_lib/ids.js'
+import { fromFirestoreDocument } from '../../../_lib/firestoreData.js'
 import {
     assertBookingIsFuture,
-    getSlotId,
-    getSlotMinutes,
+    buildBookingLockReleasePatch,
+    getBookingLockBuckets,
+    getBookingLockId,
+    MAX_DAILY_BOOKING_LOCK_BUCKETS,
     isActiveBookingStatus,
 } from '../../../_lib/bookingPolicy.js'
 import { writeAuditLog } from '../../../_lib/audit.js'
@@ -39,7 +42,7 @@ export default handleApi(async (req, res) => {
             throw new ApiError(404, 'Booking not found.', 'booking_not_found')
         }
 
-        const booking = { id: bookingSnap.id, ...bookingSnap.data() }
+        const booking = fromFirestoreDocument(bookingSnap)
 
         if (booking.student_id !== context.uid) {
             throw new ApiError(403, 'You can only cancel your own bookings.', 'booking_not_owned')
@@ -51,6 +54,11 @@ export default handleApi(async (req, res) => {
 
         assertBookingIsFuture(booking)
 
+        const lockBuckets = getBookingLockBuckets(booking)
+        if (lockBuckets.length === 0 || lockBuckets.length > MAX_DAILY_BOOKING_LOCK_BUCKETS) {
+            throw new ApiError(409, 'Booking lock data is invalid.', 'invalid_booking_slots')
+        }
+
         const update = {
             status: 'cancelled',
             updated_at: nowIso(),
@@ -58,8 +66,13 @@ export default handleApi(async (req, res) => {
         updatedBooking = { ...booking, ...update }
         transaction.update(bookingRef, update)
 
-        for (const minute of getSlotMinutes(booking)) {
-            transaction.delete(adminDb.collection('booking_slots').doc(getSlotId(booking, minute)))
+        for (const bucketMinute of lockBuckets) {
+            const lockRef = adminDb.collection('booking_slots').doc(getBookingLockId(booking, bucketMinute))
+            transaction.set(
+                lockRef,
+                buildBookingLockReleasePatch(booking, bucketMinute, FieldValue.delete(), update.updated_at),
+                { merge: true },
+            )
         }
 
         writeAuditLog({

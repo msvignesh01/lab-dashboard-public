@@ -1,5 +1,19 @@
-import { DEPARTMENTS } from '../../src/lib/constants.js'
+import { DEPARTMENTS } from '../../shared/constants.js'
 import { ApiError } from './http.js'
+
+export const isMachineReviewer = (profile) => ['faculty', 'admin'].includes(profile?.role)
+
+export const canViewMachine = (profile, machine) => {
+    return machine?.is_active === true || isMachineReviewer(profile)
+}
+
+export const assertCanViewMachine = (profile, machine) => {
+    if (!canViewMachine(profile, machine)) {
+        // Deliberately use 404 so inactive inventory is not disclosed to students.
+        throw new ApiError(404, 'Machine not found.', 'machine_not_found')
+    }
+    return machine
+}
 
 const isSafeImageUrl = (url) => {
     if (!url) return true
@@ -37,7 +51,7 @@ const sanitizeSpecifications = (value) => {
 }
 
 export const sanitizeMachinePayload = (payload, { partial = false } = {}) => {
-    if (!payload || typeof payload !== 'object') {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
         throw new ApiError(400, 'Invalid machine data.', 'invalid_machine')
     }
 
@@ -79,11 +93,23 @@ export const sanitizeMachinePayload = (payload, { partial = false } = {}) => {
     }
 
     if (!partial || payload.is_active !== undefined) {
-        data.is_active = typeof payload.is_active === 'boolean' ? payload.is_active : true
+        if (payload.is_active === undefined) {
+            data.is_active = true
+        } else if (typeof payload.is_active !== 'boolean') {
+            throw new ApiError(400, 'Machine active state must be a boolean.', 'invalid_machine_active_state')
+        } else {
+            data.is_active = payload.is_active
+        }
     }
 
     if (!partial || payload.requires_training !== undefined) {
-        data.requires_training = typeof payload.requires_training === 'boolean' ? payload.requires_training : false
+        if (payload.requires_training === undefined) {
+            data.requires_training = false
+        } else if (typeof payload.requires_training !== 'boolean') {
+            throw new ApiError(400, 'Training requirement must be a boolean.', 'invalid_training_requirement')
+        } else {
+            data.requires_training = payload.requires_training
+        }
     }
 
     if (partial && Object.keys(data).length === 0) {

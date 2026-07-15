@@ -2,6 +2,7 @@ import { getAuthenticatedContext } from '../../../_lib/authContext.js'
 import { assertMethod, getRouteParam, handleApi, sendOk, ApiError } from '../../../_lib/http.js'
 import { isValidFirestoreId } from '../../../_lib/ids.js'
 import { getAvailabilityForMachine } from '../../../_lib/availability.js'
+import { assertCanViewMachine } from '../../../_lib/machinePolicy.js'
 
 export default handleApi(async (req, res) => {
     assertMethod(req, 'GET')
@@ -23,6 +24,7 @@ export default handleApi(async (req, res) => {
         dateString: date,
         studentId: context.profile.role === 'student' ? context.uid : null,
     })
+    assertCanViewMachine(context.profile, availability.machine)
 
     return sendOk(res, availability)
 })

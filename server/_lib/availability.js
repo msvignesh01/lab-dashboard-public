@@ -1,8 +1,9 @@
 import { adminDb } from './firebaseAdmin.js'
 import { ApiError } from './http.js'
+import { fromFirestoreDocument } from './firestoreData.js'
 import { getLabConfig, getLabDayRange, formatMinute } from './labConfig.js'
 import { parseDateOnlyParts } from './bookingPolicy.js'
-import { parseTimeToMinute } from '../../src/lib/bookingValidation.js'
+import { parseTimeToMinute } from '../../shared/bookingValidation.js'
 
 const ACTIVE_BOOKING_STATUSES = new Set(['pending', 'approved'])
 
@@ -86,7 +87,7 @@ export const getAvailabilityForMachine = async ({ machineId, dateString, student
         throw new ApiError(404, 'Machine not found.', 'machine_not_found')
     }
 
-    const machine = { id: machineSnap.id, ...machineSnap.data() }
+    const machine = fromFirestoreDocument(machineSnap)
     const config = await getLabConfig()
     const range = getLabDayRange(dateString, config.timezone_offset_minutes)
 
@@ -97,7 +98,7 @@ export const getAvailabilityForMachine = async ({ machineId, dateString, student
         .get()
 
     const bookingIntervals = bookingsSnap.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .map(fromFirestoreDocument)
         .filter((booking) => ACTIVE_BOOKING_STATUSES.has(booking.status))
         .map((booking) => toInterval(
             parseTimeToMinute(booking.start_time),
@@ -112,7 +113,7 @@ export const getAvailabilityForMachine = async ({ machineId, dateString, student
         .get()
 
     const maintenanceIntervals = maintenanceSnap.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .map(fromFirestoreDocument)
         .filter((item) => item.machine_id === machineId || item.scope === 'global' || !item.machine_id)
         .filter((item) => {
             const start = new Date(item.start_at)
@@ -129,7 +130,7 @@ export const getAvailabilityForMachine = async ({ machineId, dateString, student
     let trainingRecord = null
     if (studentId && machine.requires_training) {
         const trainingSnap = await adminDb.collection('training_records').doc(getTrainingRecordId(studentId, machineId)).get()
-        trainingRecord = trainingSnap.exists ? { id: trainingSnap.id, ...trainingSnap.data() } : null
+        trainingRecord = trainingSnap.exists ? fromFirestoreDocument(trainingSnap) : null
     }
 
     const isOpenDay = config.active_weekdays.includes(new Date(Date.UTC(
