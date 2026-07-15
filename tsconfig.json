@@ -41,6 +41,7 @@
     "lib/**/*.tsx",
     "services/**/*.ts",
     "services/**/*.tsx",
+    "types/**/*.d.ts",
     "proxy.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"

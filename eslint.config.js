@@ -33,7 +33,11 @@ export default defineConfig([
       "components/lanyard-with-controls.tsx",
       "components/card-template.tsx",
       "components/ui/lanyard.tsx",
+      "types/**/*.d.ts",
     ],
+    linterOptions: {
+      reportUnusedDisableDirectives: "off",
+    },
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
@@ -41,6 +45,7 @@ export default defineConfig([
       "react-hooks/refs": "off",
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/immutability": "off",
+      "react-hooks/exhaustive-deps": "off",
     },
   },
   globalIgnores([

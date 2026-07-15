@@ -1,17 +1,17 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useEffect, useMemo, useState } from "react"
-import {
-  credentialTextureDataUrl,
-  type CardVariant,
-  type CredentialArtwork,
-} from "@/components/id-card/credential-texture"
+import { useCallback, useEffect, useRef, useState } from "react"
+import CardTemplate, { type CardTemplateRef, type CardVariant } from "@/components/card-template"
 import { cn } from "@/lib/utils"
 
-const LanyardScene = dynamic(() => import("@/components/id-card/lanyard-scene"), {
+const Lanyard = dynamic(() => import("@/components/ui/lanyard"), {
   ssr: false,
-  loading: () => <SceneStatus>Loading 3D credential</SceneStatus>,
+  loading: () => (
+    <div className="flex size-full min-h-[520px] items-center justify-center bg-secondary px-6 text-center font-mono text-xs uppercase tracking-wider text-muted-foreground">
+      Loading 3D credential
+    </div>
+  ),
 })
 
 export interface LanyardDisplayProps {
@@ -22,62 +22,65 @@ export interface LanyardDisplayProps {
   variant?: CardVariant
   position?: [number, number, number]
   containerClassName?: string
+  /** Accepted for API compatibility; the reference lanyard is always draggable. */
   interactive?: boolean
 }
 
+/**
+ * Display-only 3D credential: renders the reference lanyard with a card face
+ * composited from the given identity. No editing or sharing controls.
+ */
 export function LanyardDisplay({
   name,
-  department = "Fabrication Lab",
-  role = "Member",
-  status = "Verified",
+  department,
+  role,
+  status,
   variant = "dark",
-  position,
+  position = [0, 0, 20],
   containerClassName,
-  interactive = true,
 }: LanyardDisplayProps) {
-  const artwork = useMemo<CredentialArtwork>(() => ({
-    displayName: name,
-    department,
-    role,
-    status,
-    variant,
-  }), [department, name, role, status, variant])
-  const [textureUrl, setTextureUrl] = useState<string | null>(null)
+  const cardTemplateRef = useRef<CardTemplateRef>(null)
+  const [cardTextureUrl, setCardTextureUrl] = useState<string | undefined>(undefined)
+  const [textureKey, setTextureKey] = useState(0)
+
+  const handleTextureReady = useCallback((dataUrl: string) => {
+    setCardTextureUrl(dataUrl)
+    setTextureKey((key) => key + 1)
+  }, [])
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setTextureUrl(credentialTextureDataUrl(artwork))
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [artwork])
+    const timer = setTimeout(() => {
+      void cardTemplateRef.current?.captureTexture()
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [name, department, role, variant])
 
   return (
     <div
       className={cn("relative size-full min-h-[520px]", containerClassName)}
-      aria-label={`3D lab profile card for ${name}`}
+      aria-label={`3D lab credential for ${name}`}
       role="img"
     >
       <span className="sr-only">
-        Lab profile presentation for {name}, {department}, {role}, account status {status}.
+        Lab credential presentation for {name}
+        {department ? `, ${department}` : ""}
+        {role ? `, ${role}` : ""}
+        {status ? `, account status ${status}` : ""}.
       </span>
-      {textureUrl ? (
-        <LanyardScene
-          containerClassName="size-full"
-          interactive={interactive}
-          position={position}
-          textureUrl={textureUrl}
-        />
-      ) : (
-        <SceneStatus>Preparing 3D credential</SceneStatus>
-      )}
-    </div>
-  )
-}
-
-function SceneStatus({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex size-full min-h-[520px] items-center justify-center bg-secondary px-6 text-center font-mono text-xs uppercase tracking-wider text-muted-foreground">
-      {children}
+      <CardTemplate
+        ref={cardTemplateRef}
+        userName={name}
+        variant={variant}
+        onTextureReady={handleTextureReady}
+        subtitle={department}
+        meta={role}
+      />
+      <Lanyard
+        key={textureKey}
+        position={position}
+        containerClassName="size-full"
+        cardTextureUrl={cardTextureUrl}
+      />
     </div>
   )
 }
