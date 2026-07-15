@@ -17,7 +17,7 @@ describe("public marketing site", () => {
     expect(source).toContain('href="/signup"')
   })
 
-  it("does not expose a public lanyard route", () => {
-    expect(existsSync(new URL("../../app/lanyard/page.tsx", import.meta.url))).toBe(false)
+  it("exposes the public lanyard studio route", () => {
+    expect(existsSync(new URL("../../app/lanyard/page.tsx", import.meta.url))).toBe(true)
   })
 })
