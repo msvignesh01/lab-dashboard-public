@@ -194,6 +194,27 @@
 }
 
 @media print {
-  header, nav, aside, button { display: none !important; }
-  main { padding: 0 !important; }
+  @page { margin: 0; }
+
+  body * { visibility: hidden !important; }
+
+  .credential-print-surface,
+  .credential-print-surface * { visibility: visible !important; }
+
+  .credential-print-surface {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    min-height: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .credential-print-surface form,
+  header,
+  nav,
+  aside,
+  button { display: none !important; }
 }

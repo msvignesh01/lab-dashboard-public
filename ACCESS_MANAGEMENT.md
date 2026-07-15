@@ -143,7 +143,9 @@ Role, status, and approval changes must use the trusted administrator workflows.
 
 ## Digital ID Limitations
 
-The portal's Digital ID is an on-screen convenience that displays the currently authenticated profile. It is not a signed credential, physical badge, government or institutional identity document, offline proof, or standalone machine-access authorization. Screenshots and printouts must not be accepted as proof of identity or entitlement. Protected operations are authorized again by the server at the time of the request.
+The public landing page shows only a fixed 3D lanyard. Editing, saving, and printing the card presentation are available only to an authenticated user inside the portal; they do not alter trusted role, status, training, or access records. The product exposes no public credential route, copy-link/Web Share action, LinkedIn/X action, or alternate flat-card credential fallback.
+
+The portal's Digital ID is a presentation convenience initialized from the currently authenticated profile. It is not a signed credential, physical badge, government or institutional identity document, offline proof, or standalone machine-access authorization. Saved images, screenshots, and printouts must not be accepted as proof of identity or entitlement. Protected operations are authorized again by the server at the time of the request.
 
 ## Periodic Access Review
 

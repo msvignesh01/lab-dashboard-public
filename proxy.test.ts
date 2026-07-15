@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { createContentSecurityPolicy } from "./proxy"
+import { createContentSecurityPolicy, permissionsPolicy } from "./proxy"
 
 const directive = (policy: string, name: string) => (
   policy
@@ -20,9 +20,18 @@ describe("content security policy", () => {
   })
 
   it("does not add unsafe script evaluation outside development", () => {
-    expect(directive(createContentSecurityPolicy("prod", false), "script-src"))
-      .not.toContain("'unsafe-eval'")
+    const productionScriptPolicy = directive(createContentSecurityPolicy("prod", false), "script-src")
+
+    expect(productionScriptPolicy).toContain("'wasm-unsafe-eval'")
+    expect(productionScriptPolicy).not.toContain("'unsafe-eval'")
     expect(directive(createContentSecurityPolicy("dev", true), "script-src"))
       .toContain("'unsafe-eval'")
+  })
+})
+
+describe("permissions policy", () => {
+  it("disables the browser Web Share API", () => {
+    expect(permissionsPolicy).toContain("web-share=()")
+    expect(permissionsPolicy).not.toContain("web-share=(self)")
   })
 })

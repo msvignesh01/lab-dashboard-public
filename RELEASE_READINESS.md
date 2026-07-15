@@ -35,8 +35,7 @@ A release is not ready until the change record contains:
 - reviewed Git commit and diff;
 - clean-install, lint, typecheck, unit-test, production-build, production-server smoke, and dependency-audit results;
 - Firestore rules emulator result from an environment with Java;
-- preview deployment ID and URL;
-- explicit preview Firebase target and environment-variable review;
+- temporary preview deployment ID/URL and explicit preview Firebase target when the approved test plan requires a hosted release candidate;
 - completed student/faculty/admin matrix from [QA_CHECKLIST.md](./QA_CHECKLIST.md);
 - accessibility/responsive and browser smoke evidence;
 - Firebase Auth password-policy, email-privacy, reCAPTCHA, authorized-domain, quota/monitoring evidence;
@@ -71,7 +70,7 @@ Browser validation is not an identity-provider security boundary because Firebas
 
 Treat a password-policy, email-privacy, or enforced reCAPTCHA regression as a no-go condition. Keep console/API configuration evidence in the change record without credentials or user identities.
 
-## Preview Rollout
+## Release-Candidate Validation
 
 1. Create a release branch from the intended base commit.
 2. Review the diff for unrelated files, generated artifacts, secrets, temporary data, and obsolete frontend paths.
@@ -90,28 +89,29 @@ npm audit --omit=dev
 ```
 
 4. Record results and resolve or formally accept every exception.
-5. Configure the approved preview Firebase project's password policy, email-enumeration protection, authorized domains, reCAPTCHA protection, quotas, and monitoring. Exercise reCAPTCHA in audit mode first and then test **ENFORCE** before production approval.
-6. Deploy reviewed indexes to the explicit preview project and wait until every required index is ready:
+5. Automatic feature-branch deployments are disabled. If the approved test plan requires a hosted release candidate, create one manually and treat it as temporary; otherwise use the clean production-mode build and smoke evidence from the exact commit.
+6. For a hosted candidate, configure the approved preview Firebase project's password policy, email-enumeration protection, authorized domains, reCAPTCHA protection, quotas, and monitoring. Exercise reCAPTCHA in audit mode first and then test **ENFORCE** before production approval.
+7. Deploy reviewed indexes to the explicit preview project and wait until every required index is ready:
 
 ```bash
 npm run deploy:indexes -- --project <preview-firebase-project-id>
 ```
 
-7. Create a Vercel preview deployment. Do not configure a static output directory; the Next.js application and trusted Pages API functions must deploy together.
-8. Point preview public Firebase values and Firebase Admin credentials to the approved preview project. Never combine a preview browser configuration with production Admin credentials, or the reverse.
-9. Configure only the bootstrap and notification values required for the test plan.
-10. Smoke-test trusted profile registration/edit plus representative machine, booking, user, and audit reads from the preview artifact while the prior rules remain active.
-11. Deploy reviewed deny-all-client-data rules to the explicit preview project:
+8. Create a manual Vercel preview only when required. Do not configure a static output directory; the Next.js application and trusted Pages API functions must deploy together.
+9. Point preview public Firebase values and Firebase Admin credentials to the approved preview project. Never combine a preview browser configuration with production Admin credentials, or the reverse.
+10. Configure only the bootstrap and notification values required for the test plan.
+11. Smoke-test trusted profile registration/edit plus representative machine, booking, user, and audit reads from the preview artifact while the prior rules remain active.
+12. Deploy reviewed deny-all-client-data rules to the explicit preview project:
 
 ```bash
 npm run deploy:rules -- --project <preview-firebase-project-id>
 ```
 
-12. Re-run representative trusted API allow/deny checks and prove direct browser Firestore access is denied.
-13. Enable/verify the Firestore TTL policy for `rate_limits.expires_at`; this is a separate platform setting, not part of the index JSON.
-14. Run the complete role and lifecycle matrix against the preview URL, including stale same-target Auth-sync recovery and direct Auth abuse controls.
-15. Check production-mode security headers, logs, rate limits, error handling, and optional integrations.
-16. Freeze the approved commit and deployment. Any code or environment change invalidates the relevant evidence and must be retested.
+13. Re-run representative trusted API allow/deny checks and prove direct browser Firestore access is denied.
+14. Enable/verify the Firestore TTL policy for `rate_limits.expires_at`; this is a separate platform setting, not part of the index JSON.
+15. Run the complete role and lifecycle matrix against the preview URL, when one exists, including stale same-target Auth-sync recovery and direct Auth abuse controls.
+16. Check production-mode security headers, logs, rate limits, error handling, and optional integrations.
+17. Freeze the approved commit and deployment evidence. Any code or environment change invalidates the relevant evidence and must be retested.
 
 If Vercel Deployment Protection is enabled, testers may use authorized Vercel accounts or a deliberately issued temporary access mechanism. Never place bypass material in source, documentation, screenshots, or shared test notes; revoke it after testing.
 
@@ -162,20 +162,21 @@ Record start/end time, operator, target, output summary, and post-migration veri
 
 ## Production Promotion
 
-1. Confirm preview QA was performed against the exact commit to be promoted.
+1. Confirm release-candidate QA was performed against the exact commit to be promoted.
 2. Reconfirm the Vercel production project, Firebase project, domain, and environment-variable scope with a second reviewer.
 3. Capture the current production deployment, environment revision, rules/index commit, and Firestore backup reference as the rollback baseline.
 4. Schedule or announce the change according to institutional policy.
 5. Reconfirm password policy **Require**, improved email privacy, reCAPTCHA **ENFORCE**, authorized domains, quotas, alerts, and named Auth-abuse monitoring ownership.
 6. Dispatch the protected workflow for `indexes` with `DEPLOY_FIRESTORE_INDEXES`, then wait for readiness.
 7. Apply an approved data migration only if it is part of the release plan.
-8. Promote or redeploy the exact approved Vercel artifact.
+8. Confirm the exact approved commit is reachable from `main`, then deploy that commit to the single Vercel production project.
 9. Smoke-test registration, own-profile update, and representative role-scoped reads through the trusted API while the prior rules are still active.
 10. Dispatch the protected workflow for `rules` with `DEPLOY_FIRESTORE_RULES`, then verify direct client denial and representative API allow/deny behavior.
 11. Enable or verify TTL on `rate_limits.expires_at`.
 12. Run a minimal, non-destructive production smoke test for public, student, faculty, and admin paths.
-13. Verify the Digital ID warning remains visible and that it is not being treated operationally as an identity credential.
-14. Start the defined observation window and restrict unrelated changes.
+13. Verify the public 3D lanyard is fixed, the authenticated card exposes only edit/save/print, no sharing or flat-card credential fallback exists, and the Digital ID warning remains visible.
+14. Confirm every stable production alias targets the new READY deployment and start the defined observation window with unrelated changes restricted.
+15. After the observation window closes without a rollback trigger, delete any temporary Vercel preview, superseded Vercel deployments, obsolete GitHub deployment records, and the unused GitHub `Preview` environment. Preserve one canonical READY production deployment and the GitHub `Production` environment.
 
 ## Observation And Rollback Triggers
 
@@ -248,7 +249,7 @@ Security boundary failures require immediate containment even if application rol
 | Reviewed commit and scope |  |  |  |
 | Automated gates |  |  |  |
 | Rules emulator |  |  |  |
-| Preview role matrix |  |  |  |
+| Hosted-preview role matrix, if used (otherwise N/A) |  |  |  |
 | Environment migration/target check |  |  |  |
 | Firebase Auth platform controls |  |  |  |
 | Rules/index approval |  |  |  |

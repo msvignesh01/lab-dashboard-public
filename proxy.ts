@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
+export const permissionsPolicy =
+  "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(self), screen-wake-lock=(), usb=(), web-share=(), xr-spatial-tracking=()"
+
 const productionSecurityHeaders = [
   ["Cross-Origin-Opener-Policy", "same-origin-allow-popups"],
   ["Cross-Origin-Resource-Policy", "same-origin"],
   ["Origin-Agent-Cluster", "?1"],
   [
     "Permissions-Policy",
-    "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(self), screen-wake-lock=(), usb=(), web-share=(self), xr-spatial-tracking=()",
+    permissionsPolicy,
   ],
   ["Referrer-Policy", "strict-origin-when-cross-origin"],
   ["X-Content-Type-Options", "nosniff"],
@@ -21,7 +24,7 @@ const productionSecurityHeaders = [
 export function createContentSecurityPolicy(nonce: string, isDevelopment: boolean): string {
   const directives = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://www.gstatic.com https://www.google.com/recaptcha/${isDevelopment ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval' https://www.gstatic.com https://www.google.com/recaptcha/${isDevelopment ? " 'unsafe-eval'" : ""}`,
     `style-src 'self' 'nonce-${nonce}'${isDevelopment ? " 'unsafe-inline'" : ""}`,
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' blob: data: https:",

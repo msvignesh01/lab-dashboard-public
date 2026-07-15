@@ -1,12 +1,12 @@
 # Lab Dashboard Release QA Checklist
 
-Use this checklist for a Next.js preview before promotion and again for production smoke testing. Record evidence; do not infer success from a local build or from client-side navigation alone.
+Use this checklist for a Next.js candidate before promotion and again for production smoke testing. A hosted preview is optional and must be created only when the approved test plan requires one. Record evidence; do not infer success from a local build or from client-side navigation alone.
 
 ## Test Record
 
 - Release/branch:
 - Commit SHA:
-- Preview URL:
+- Preview URL, if used (otherwise N/A):
 - Production URL, if applicable:
 - Firebase project ID or approved environment label:
 - Vercel deployment ID:
@@ -16,7 +16,7 @@ Use this checklist for a Next.js preview before promotion and again for producti
 - Test date/time and timezone:
 - Change approval/reference:
 
-Use dedicated test accounts and non-sensitive test data. Keep preview and production Firebase credentials and datasets isolated.
+Use dedicated test accounts and non-sensitive test data. When a hosted preview is used, keep its Firebase credentials and datasets isolated from production.
 
 ## 1. Toolchain And Quality Gates
 
@@ -61,6 +61,7 @@ Confirm the selected Vercel environment uses:
 - install command `npm ci`;
 - build command `npm run vercel-build`;
 - no static output-directory override;
+- automatic Git deployment enabled only for `main`, with feature-branch previews disabled;
 - the intended custom domain and `NEXT_PUBLIC_SITE_URL`, if used.
 
 Confirm canonical browser variables exist in that environment:
@@ -267,12 +268,14 @@ There must be no role switcher, hard-coded production records presented as live 
 
 ## 11. Digital ID Safety Check
 
-1. Confirm the page shows only the signed-in user's server-loaded profile.
-2. Confirm client-state manipulation cannot change operational permissions.
-3. Confirm the warning states that the display is not a signed/shareable/offline credential.
-4. Confirm a screenshot, printout, or stale browser view cannot authorize an API request.
+1. Confirm the public landing-page lanyard is fixed and exposes no input, variant selector, save, print, copy-link, Web Share, LinkedIn, or X control.
+2. Confirm the authenticated Digital ID initializes from only the signed-in user's server-loaded profile and exposes edit, save, and print controls only inside the portal.
+3. Confirm the product contains no public lanyard/share route, social-share action, shareable credential URL, or alternate flat-card credential fallback. Semantic verified-profile fields may remain for accessibility and account clarity.
+4. Confirm client-state manipulation can change only the local card presentation and cannot change the trusted profile, role, status, training, or operational permissions.
+5. Confirm both the portal warning and the artwork itself state that the user-customized display, saved image, and printout are not access credentials or authorization evidence.
+6. Confirm a saved image, screenshot, printout, or stale browser view cannot authorize an API request.
 
-The Digital ID is an on-screen convenience only. It must not be treated as an institutional identity credential, physical access badge, proof of training, or machine authorization.
+The Digital ID is a presentation convenience only. It must not be treated as an institutional identity credential, physical access badge, proof of training, or machine authorization.
 
 ## 12. Production Smoke And Monitoring
 
@@ -280,16 +283,17 @@ After approved promotion:
 
 1. Confirm the exact tested deployment and commit are live.
 2. Load public and authenticated pages from the production domain.
-3. Complete a minimal non-destructive check with student, faculty, and admin accounts.
-4. Confirm trusted API health, authentication, rules, indexes, and required notification integrations.
-5. Watch error rate, function logs, authentication failures, Firestore errors, and user reports for the defined observation window.
-6. Stop rollout and follow [RELEASE_READINESS.md](./RELEASE_READINESS.md) if a rollback trigger is met.
+3. Confirm the stable production aliases resolve to the same READY deployment. After the rollback observation window closes, remove superseded Vercel preview/production deployments, obsolete GitHub deployment records, and any unused GitHub `Preview` environment so only the canonical READY production deployment remains.
+4. Complete a minimal non-destructive check with student, faculty, and admin accounts.
+5. Confirm trusted API health, authentication, rules, indexes, and required notification integrations.
+6. Watch error rate, function logs, authentication failures, Firestore errors, and user reports for the defined observation window.
+7. Stop rollout and follow [RELEASE_READINESS.md](./RELEASE_READINESS.md) if a rollback trigger is met.
 
 ## Sign-Off
 
 - Quality-gate evidence:
 - Rules-emulator evidence:
-- Preview role-matrix evidence:
+- Preview role-matrix evidence, if a hosted preview was used (otherwise N/A):
 - Accessibility/browser evidence:
 - Security review:
 - Firebase Auth platform-control evidence:
