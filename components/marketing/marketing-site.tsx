@@ -130,7 +130,6 @@ export function MarketingSite() {
             <div className="relative hidden h-[650px] lg:block">
               <LanyardDisplay
                 name="MAKE / 01"
-                department="Fabrication Lab"
                 role="Member"
                 interactive={false}
                 position={[0, 0, 20]}
@@ -248,6 +247,9 @@ export function MarketingSite() {
             </Link>
             <Link href="/signup" className="hover:text-foreground">
               Request access
+            </Link>
+            <Link href="/lanyard" className="hover:text-foreground">
+              Lanyard studio
             </Link>
           </div>
         </div>

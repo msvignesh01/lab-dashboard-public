@@ -1,8 +1,8 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useCallback, useEffect, useRef, useState } from "react"
-import CardTemplate, { type CardTemplateRef, type CardVariant } from "@/components/card-template"
+import { useCallback, useState } from "react"
+import CardTemplate, { type CardVariant } from "@/components/card-template"
 import { cn } from "@/lib/utils"
 
 const Lanyard = dynamic(() => import("@/components/ui/lanyard"), {
@@ -39,7 +39,6 @@ export function LanyardDisplay({
   position = [0, 0, 20],
   containerClassName,
 }: LanyardDisplayProps) {
-  const cardTemplateRef = useRef<CardTemplateRef>(null)
   const [cardTextureUrl, setCardTextureUrl] = useState<string | undefined>(undefined)
   const [textureKey, setTextureKey] = useState(0)
 
@@ -47,13 +46,6 @@ export function LanyardDisplay({
     setCardTextureUrl(dataUrl)
     setTextureKey((key) => key + 1)
   }, [])
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void cardTemplateRef.current?.captureTexture()
-    }, 150)
-    return () => clearTimeout(timer)
-  }, [name, department, role, variant])
 
   return (
     <div
@@ -67,20 +59,26 @@ export function LanyardDisplay({
         {role ? `, ${role}` : ""}
         {status ? `, account status ${status}` : ""}.
       </span>
+      {/* CardTemplate composites the card face and fires handleTextureReady when ready. */}
       <CardTemplate
-        ref={cardTemplateRef}
         userName={name}
         variant={variant}
         onTextureReady={handleTextureReady}
         subtitle={department}
         meta={role}
       />
-      <Lanyard
-        key={textureKey}
-        position={position}
-        containerClassName="size-full"
-        cardTextureUrl={cardTextureUrl}
-      />
+      {cardTextureUrl ? (
+        <Lanyard
+          key={textureKey}
+          position={position}
+          containerClassName="size-full"
+          cardTextureUrl={cardTextureUrl}
+        />
+      ) : (
+        <div className="flex size-full min-h-[520px] items-center justify-center bg-secondary px-6 text-center font-mono text-xs uppercase tracking-wider text-muted-foreground">
+          Preparing 3D credential
+        </div>
+      )}
     </div>
   )
 }

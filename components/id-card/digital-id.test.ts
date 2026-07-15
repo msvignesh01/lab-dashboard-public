@@ -25,10 +25,9 @@ describe("digital ID credential", () => {
     expect(controlsSource).not.toMatch(/Share|encryptLanyardData/)
   })
 
-  it("composites the card face from the baked reference card art", () => {
-    expect(cardTemplateSource).toContain("/card-base-dark.png")
-    expect(cardTemplateSource).toContain("/card-base-light.png")
-    expect(cardTemplateSource).not.toMatch(/guadalajara|new york/i)
+  it("renders a lab-branded card face with no v0/event artwork", () => {
+    expect(cardTemplateSource).toContain("FABRICATION")
+    expect(cardTemplateSource).not.toMatch(/card-base|guadalajara|new york|prompt to production|attendee/i)
   })
 
   it("marks the credential as a presentation, not an access token", () => {
