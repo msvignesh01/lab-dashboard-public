@@ -11,8 +11,6 @@ describe("public marketing site", () => {
     expect(source).not.toMatch(/window\.print|\bdownload\b|save card|personalize|\bapply\b/i)
     expect(source).toContain("<LanyardDisplay")
     expect(source).toContain('name="MAKE / 01"')
-    expect(source).toContain("pointer-events-none")
-    expect(source).toContain("interactive={false}")
     expect(source).toContain('href="/login"')
     expect(source).toContain('href="/signup"')
   })

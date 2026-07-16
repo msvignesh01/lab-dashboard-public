@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { LanyardDisplay } from "@/components/id-card/lanyard-display"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Reveal } from "@/components/motion/reveal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -90,7 +91,7 @@ export function MarketingSite() {
             />
           </div>
           <div className="relative mx-auto grid min-h-[calc(100dvh-4rem)] max-w-7xl items-center px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="relative z-10 max-w-3xl">
+            <Reveal as="div" className="relative z-10 max-w-3xl" preset="blur-slide">
               <Badge variant="secondary" className="mb-7 font-mono uppercase tracking-widest">
                 Verified access · server-enforced
               </Badge>
@@ -126,14 +127,13 @@ export function MarketingSite() {
                   Availability in portal
                 </span>
               </div>
-            </div>
+            </Reveal>
             <div className="relative hidden h-[650px] lg:block">
               <LanyardDisplay
                 name="MAKE / 01"
                 role="Member"
-                interactive={false}
                 position={[0, 0, 20]}
-                containerClassName="pointer-events-none absolute inset-0 select-none"
+                containerClassName="absolute inset-0 select-none"
               />
             </div>
           </div>
@@ -141,7 +141,7 @@ export function MarketingSite() {
 
         <section id="capabilities" className="bg-background py-24 sm:py-32">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <div className="grid gap-8 border-b pb-12 lg:grid-cols-2">
+            <Reveal as="div" className="grid gap-8 border-b pb-12 lg:grid-cols-2" triggerOnView>
               <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">Capabilities / 01–03</p>
               <div>
                 <h2 className="text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
@@ -152,14 +152,14 @@ export function MarketingSite() {
                   every sensitive operation.
                 </p>
               </div>
-            </div>
-            <div className="grid md:grid-cols-3">
+            </Reveal>
+            <Reveal as="div" className="grid md:grid-cols-3" triggerOnView>
               {capabilities.map((item) => {
                 const Icon = item.icon
                 return (
                   <article
                     key={item.index}
-                    className="border-b p-6 md:border-b-0 md:border-r md:last:border-r-0 md:p-8"
+                    className="border-b p-6 transition-colors hover:bg-secondary/40 md:border-b-0 md:border-r md:last:border-r-0 md:p-8"
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-xs text-muted-foreground">{item.index}</span>
@@ -170,22 +170,22 @@ export function MarketingSite() {
                   </article>
                 )
               })}
-            </div>
+            </Reveal>
           </div>
         </section>
 
         <section id="access" className="border-y bg-secondary py-24 sm:py-32">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
-              <div>
+              <Reveal as="div" triggerOnView>
                 <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
                   Access sequence / 04 steps
                 </p>
                 <h2 className="mt-5 text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
                   From new member to machine-ready.
                 </h2>
-              </div>
-              <div className="flex flex-col">
+              </Reveal>
+              <Reveal as="div" className="flex flex-col" triggerOnView>
                 {steps.map((step, index) => {
                   const Icon = step.icon
                   return (
@@ -202,35 +202,37 @@ export function MarketingSite() {
                     </div>
                   )
                 })}
-              </div>
+              </Reveal>
             </div>
           </div>
         </section>
 
         <section className="py-24 sm:py-32">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <Card className="overflow-hidden bg-primary text-primary-foreground">
-              <CardHeader className="p-8 sm:p-12">
-                <CardDescription className="font-mono uppercase tracking-[0.2em] text-primary-foreground/60">
-                  Trust model / explicit
-                </CardDescription>
-                <CardTitle className="max-w-4xl text-balance text-4xl sm:text-6xl">
-                  The interface presents identity. The server grants authority.
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col items-start justify-between gap-6 border-t border-primary-foreground/20 p-8 sm:flex-row sm:items-center sm:p-12">
-                <p className="max-w-xl leading-relaxed text-primary-foreground/70">
-                  Roles, account status, machine training, conflicts, and every administrative action are re-checked
-                  against trusted records.
-                </p>
-                <Button asChild variant="secondary" size="lg">
-                  <Link href="/login">
-                    Enter secure portal
-                    <ArrowRight />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
+            <Reveal as="div" triggerOnView>
+              <Card className="overflow-hidden bg-primary text-primary-foreground">
+                <CardHeader className="p-8 sm:p-12">
+                  <CardDescription className="font-mono uppercase tracking-[0.2em] text-primary-foreground/60">
+                    Trust model / explicit
+                  </CardDescription>
+                  <CardTitle className="max-w-4xl text-balance text-4xl sm:text-6xl">
+                    The interface presents identity. The server grants authority.
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col items-start justify-between gap-6 border-t border-primary-foreground/20 p-8 sm:flex-row sm:items-center sm:p-12">
+                  <p className="max-w-xl leading-relaxed text-primary-foreground/70">
+                    Roles, account status, machine training, conflicts, and every administrative action are re-checked
+                    against trusted records.
+                  </p>
+                  <Button asChild variant="secondary" size="lg">
+                    <Link href="/login">
+                      Enter secure portal
+                      <ArrowRight />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </Reveal>
           </div>
         </section>
       </main>
