@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Reveal } from "@/components/motion/reveal"
 import { DEPARTMENTS, EMAIL_DOMAINS, RATE_LIMIT } from "@/lib/constants"
 import { validateEmail, validatePassword, validatePhoneNumber } from "@/lib/security"
 import type { SignupMetadata } from "@/lib/types"
@@ -217,11 +218,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           <span className="flex size-9 items-center justify-center rounded-md bg-primary-foreground text-primary"><Box /></span>
           Fabrication Lab
         </Link>
-        <div className="my-auto max-w-lg">
+        <Reveal as="div" className="my-auto max-w-lg">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-primary-foreground/60">Institutional identity gateway</p>
           <h1 className="mt-5 text-balance text-6xl font-semibold tracking-tight">Build access starts here.</h1>
           <p className="mt-6 text-lg leading-relaxed text-primary-foreground/70">One verified account for equipment scheduling, training, review, and lab operations.</p>
-        </div>
+        </Reveal>
         <p className="font-mono text-xs text-primary-foreground/50">AUTHORITY / FIREBASE ID + SERVER PROFILE</p>
       </section>
 
@@ -231,7 +232,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           <ThemeToggle />
         </header>
         <div className="flex flex-1 items-center justify-center p-6 py-10">
-          <Card className="w-full max-w-md border-0 shadow-none">
+          <Reveal as="div" className="w-full max-w-md">
+          <Card className="w-full border-0 shadow-none">
             <CardHeader>
               <CardTitle className="text-3xl">{signup ? "Request lab access" : "Enter the lab portal"}</CardTitle>
               <CardDescription>{signup ? "Create an institutional profile. Faculty accounts require approval." : "Use your verified institutional credentials."}</CardDescription>
@@ -309,6 +311,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               </p>
             </CardFooter>
           </Card>
+          </Reveal>
         </div>
       </section>
     </main>

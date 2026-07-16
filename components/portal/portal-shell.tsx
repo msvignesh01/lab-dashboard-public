@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Reveal } from "@/components/motion/reveal"
 import { ProfileDialog } from "@/components/profile/profile-dialog"
 import { LoadingGate, PendingApprovalGate, ProfileErrorGate, SuspendedGate, VerifyEmailGate } from "@/components/auth/account-gates"
 import { cn } from "@/lib/utils"
@@ -165,7 +166,11 @@ function PortalFrame({ children, profile }: { children: ReactNode; profile: Prof
           <div><p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Portal / {title}</p><h1 className="text-sm font-medium">{title}</h1></div>
           <div className="ml-auto flex items-center gap-1"><NotificationMenu /><ThemeToggle /><AccountMenu profile={profile} /></div>
         </header>
-        <main id="portal-content" className="mx-auto max-w-7xl p-4 pb-24 md:p-8">{children}</main>
+        <main id="portal-content" className="mx-auto max-w-7xl p-4 pb-24 md:p-8">
+          <Reveal key={pathname} as="div" preset="blur-slide">
+            {children}
+          </Reveal>
+        </main>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t bg-background/95 p-2 backdrop-blur-xl md:hidden" aria-label="Primary mobile navigation">
