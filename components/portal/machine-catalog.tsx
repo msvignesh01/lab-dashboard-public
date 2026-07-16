@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { LAB_TIMEZONE } from "@/lib/constants"
+import { Reveal } from "@/components/motion/reveal"
 import { addDays, formatTime, toLabDateString } from "@/lib/lab-time"
 import type { AvailabilityInterval, Machine, MachineAvailability } from "@/lib/types"
 import { useAuth } from "@/hooks/use-auth"
@@ -289,9 +290,9 @@ export function MachineCatalog() {
         <Select value={department} onValueChange={setDepartment}><SelectTrigger className="w-full sm:w-56"><SlidersHorizontal /><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">All departments</SelectItem>{departments.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectGroup></SelectContent></Select>
       </div>
       {loading && machines.length === 0 ? <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">Loading machine registry…</div> : visible.length === 0 ? <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">No machines match these filters.</div> : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <Reveal as="div" className="grid gap-4 md:grid-cols-2" triggerOnView>
           {visible.map((machine) => (
-            <Card key={machine.id} className="overflow-hidden">
+            <Card key={machine.id} className="overflow-hidden transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex h-40 items-center justify-center border-b bg-secondary">
                 {machine.image_url ? (
                   // Administrators may register an HTTPS image host; these are deliberately lazy and unproxied.
@@ -304,7 +305,7 @@ export function MachineCatalog() {
               <CardFooter className="justify-between"><SpecificationDialog machine={machine} />{profile?.role === "student" && <BookingDialog machine={machine} onCreated={load} />}</CardFooter>
             </Card>
           ))}
-        </div>
+        </Reveal>
       )}
     </div>
   )

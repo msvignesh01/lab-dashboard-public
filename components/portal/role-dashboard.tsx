@@ -6,13 +6,14 @@ import { ArrowRight, CalendarClock, CircleGauge, Clock3, GraduationCap, RefreshC
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Reveal } from "@/components/motion/reveal"
 import { addDays, formatTime, toLabDateString } from "@/lib/lab-time"
 import type { Booking, LabConfig, Machine, TrainingRecord } from "@/lib/types"
 import { useAuth } from "@/hooks/use-auth"
 import { bookingService, labConfigService, machineService, trainingService } from "@/services/portal-service"
 
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <Card><CardHeader><CardDescription className="font-mono uppercase tracking-wider">{label}</CardDescription><CardTitle className="text-4xl">{value}</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{detail}</p></CardContent></Card>
+  return <Card className="transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md"><CardHeader><CardDescription className="font-mono uppercase tracking-wider">{label}</CardDescription><CardTitle className="text-4xl">{value}</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{detail}</p></CardContent></Card>
 }
 
 function statusVariant(status: Booking["status"]): "default" | "secondary" | "destructive" {
@@ -76,11 +77,13 @@ export function RoleDashboard() {
 
       {error && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"><p>{error}</p><Button variant="outline" size="sm" className="mt-3" onClick={() => void load()}>Retry</Button></div>}
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-busy={loading}>
-        <Metric label="Active machines" value={loading ? "—" : String(activeMachines.length).padStart(2, "0")} detail={`${machines.length} visible to your role`} />
-        <Metric label={canReviewBookings ? "Pending review" : "Upcoming approved"} value={loading ? "—" : String(canReviewBookings ? pendingBookings.length : approvedBookings.length).padStart(2, "0")} detail="within the next 30 days" />
-        <Metric label="Training approvals" value={loading ? "—" : String(activeTraining.length).padStart(2, "0")} detail={canReviewBookings ? "active records in current result" : "active machine qualifications"} />
-        <Metric label="Booking window" value={config ? `${config.max_advance_days}d` : "—"} detail={config ? `${formatTime(config.open_time)}–${formatTime(config.close_time)} lab hours` : "Loading policy"} />
+      <section aria-busy={loading}>
+        <Reveal as="div" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" triggerOnView>
+          <Metric label="Active machines" value={loading ? "—" : String(activeMachines.length).padStart(2, "0")} detail={`${machines.length} visible to your role`} />
+          <Metric label={canReviewBookings ? "Pending review" : "Upcoming approved"} value={loading ? "—" : String(canReviewBookings ? pendingBookings.length : approvedBookings.length).padStart(2, "0")} detail="within the next 30 days" />
+          <Metric label="Training approvals" value={loading ? "—" : String(activeTraining.length).padStart(2, "0")} detail={canReviewBookings ? "active records in current result" : "active machine qualifications"} />
+          <Metric label="Booking window" value={config ? `${config.max_advance_days}d` : "—"} detail={config ? `${formatTime(config.open_time)}–${formatTime(config.close_time)} lab hours` : "Loading policy"} />
+        </Reveal>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
